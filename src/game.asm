@@ -58,21 +58,49 @@ roll_key:
     mov byte [dice_available], 1
     call draw_dice
     jmp main_loop
+
 ; -----------------------------------------
-; Move Red Token 1
-; Rule:
-; 1. Token can move only after fresh dice roll
-; 2. If token is at home, it can leave only on dice 6
-; 3. If token is already out, it moves by dice value
+; Red token movement wrappers
 ; -----------------------------------------
 move_red_token_1:
+    mov si, red_token_1_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+move_red_token_2:
+    mov si, red_token_2_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+move_red_token_3:
+    mov si, red_token_3_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+move_red_token_4:
+    mov si, red_token_4_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+
+; -----------------------------------------
+; move_red_token_by_si
+; input:
+; SI = address of selected token progress
+;
+; Rules:
+; 1. Token can move only after fresh dice roll
+; 2. Home token can leave only on dice 6
+; 3. Token already out moves by dice value
+; -----------------------------------------
+move_red_token_by_si:
     ; Check if dice is available
     mov al, [dice_available]
     cmp al, 1
     jne .invalid_move
 
-    ; Check if Red Token 1 is at home
-    mov al, [red_token_1_progress]
+    ; Check if selected token is at home
+    mov al, [si]
     cmp al, 255
     jne .already_out
 
@@ -82,17 +110,17 @@ move_red_token_1:
     jne .invalid_move
 
     ; Move token from home to starting position
-    mov byte [red_token_1_progress], 0
+    mov byte [si], 0
 
     ; Dice has been used
     mov byte [dice_available], 0
 
     call draw_full_screen
-    jmp main_loop
+    ret
 
 .already_out:
     ; Move token forward by dice value
-    mov al, [red_token_1_progress]
+    mov al, [si]
     add al, [dice_value]
 
     ; For now, stop movement after main path progress 51
@@ -100,20 +128,17 @@ move_red_token_1:
     cmp al, 51
     ja .invalid_move
 
-    mov [red_token_1_progress], al
+    mov [si], al
 
     ; Dice has been used
     mov byte [dice_available], 0
 
     call draw_full_screen
-    jmp main_loop
+    ret
 
 .invalid_move:
-    ; For this single-token test, invalid move consumes the dice
-    ; Later, when we add all 4 tokens, invalid token selection will not consume dice
-    mov byte [dice_available], 0
-    jmp main_loop
-
+    ; Invalid token selection does not use dice
+    ret
 
 stop_game:
     ; Return to text mode
@@ -487,17 +512,87 @@ draw_center_box:
 
 ; -----------------------------------------
 ; Draw Red Token 1
-; progress = 255 means token is inside home
-; progress = 0 to 51 means token is on main path
 ; -----------------------------------------
 draw_red_token_1:
     mov al, [red_token_1_progress]
     cmp al, 255
-    je .draw_home
+    je .home
 
-    ; Calculate actual path index:
+    call draw_red_token_on_path
+    ret
+
+.home:
+    mov bx, BOARD_X + 18
+    mov dx, BOARD_Y + 18
+    mov al, 4
+    call draw_token
+    ret
+
+
+; -----------------------------------------
+; Draw Red Token 2
+; -----------------------------------------
+draw_red_token_2:
+    mov al, [red_token_2_progress]
+    cmp al, 255
+    je .home
+
+    call draw_red_token_on_path
+    ret
+
+.home:
+    mov bx, BOARD_X + 42
+    mov dx, BOARD_Y + 18
+    mov al, 4
+    call draw_token
+    ret
+
+
+; -----------------------------------------
+; Draw Red Token 3
+; -----------------------------------------
+draw_red_token_3:
+    mov al, [red_token_3_progress]
+    cmp al, 255
+    je .home
+
+    call draw_red_token_on_path
+    ret
+
+.home:
+    mov bx, BOARD_X + 18
+    mov dx, BOARD_Y + 42
+    mov al, 4
+    call draw_token
+    ret
+
+
+; -----------------------------------------
+; Draw Red Token 4
+; -----------------------------------------
+draw_red_token_4:
+    mov al, [red_token_4_progress]
+    cmp al, 255
+    je .home
+
+    call draw_red_token_on_path
+    ret
+
+.home:
+    mov bx, BOARD_X + 42
+    mov dx, BOARD_Y + 42
+    mov al, 4
+    call draw_token
+    ret
+
+
+; -----------------------------------------
+; Draw Red token on main path
+; input:
+; AL = token progress, 0 to 51
+; -----------------------------------------
+draw_red_token_on_path:
     ; path_index = RED_START_INDEX + progress
-    mov al, [red_token_1_progress]
     add al, RED_START_INDEX
 
     ; If path_index >= 52, subtract 52
@@ -515,34 +610,17 @@ draw_red_token_1:
     call draw_token_on_cell
     ret
 
-.draw_home:
-    mov bx, BOARD_X + 18
-    mov dx, BOARD_Y + 18
-    mov al, 4
-    call draw_token
-    ret
-
 ; -----------------------------------------
-; Draw all 16 tokens in home areas
+; Draw all 16 tokens
+; Red tokens are dynamic/movable
+; Green, Yellow, Blue tokens are still fixed in home
 ; -----------------------------------------
 draw_all_tokens:
-    ; Red Token 1
+    ; Red tokens
     call draw_red_token_1
-
-    mov bx, BOARD_X + 42
-    mov dx, BOARD_Y + 18
-    mov al, 4
-    call draw_token
-
-    mov bx, BOARD_X + 18
-    mov dx, BOARD_Y + 42
-    mov al, 4
-    call draw_token
-
-    mov bx, BOARD_X + 42
-    mov dx, BOARD_Y + 42
-    mov al, 4
-    call draw_token
+    call draw_red_token_2
+    call draw_red_token_3
+    call draw_red_token_4
 
     ; Green tokens
     mov bx, BOARD_X + 126
@@ -609,7 +687,7 @@ draw_all_tokens:
 
     ret
 
-
+    
 ; -----------------------------------------
 ; Draw one token
 ; BX = x
@@ -854,6 +932,9 @@ token_color db 0
 dice_value db 1
 random_seed dw 1234
 
-red_token_1_progress db 255 ; 255 = at home, 0 = on starting cell, 1-51 = on main path, 252-248 = in home lane
+red_token_1_progress db 255
+red_token_2_progress db 255
+red_token_3_progress db 255
+red_token_4_progress db 255
 
 dice_available db 0
