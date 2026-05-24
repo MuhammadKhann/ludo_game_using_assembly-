@@ -25,4 +25,4 @@ dd if=build/game.bin of=build/ludo.img bs=512 seek=1 conv=notrunc status=none
 echo "Build successful."
 echo "Starting QEMU..."
 
-env -i PATH=/usr/bin:/bin HOME="$HOME" DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" /usr/bin/qemu-system-i386 -fda build/ludo.img
+env -i PATH=/usr/bin:/bin HOME="$HOME" DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" /usr/bin/qemu-system-i386 -drive file=build/ludo.img,format=raw,if=floppy

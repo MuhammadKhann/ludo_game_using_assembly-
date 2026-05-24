@@ -38,9 +38,22 @@ main_loop:
     cmp al, 'd'
     je roll_key
 
-    ; 1 = try to move Red Token 1
+    ; 1-4 = move Red tokens
     cmp al, '1'
     je move_red_token_1
+
+    cmp al, '2'
+    je move_red_token_2
+
+    cmp al, '3'
+    je move_red_token_3
+
+    cmp al, '4'
+    je move_red_token_4
+
+    ; ESC = stop
+    cmp al, 27
+    je stop_game
 
     ; ESC = stop
     cmp al, 27
@@ -57,6 +70,15 @@ roll_key:
     call roll_dice
     mov byte [dice_available], 1
     call draw_dice
+
+    ; If Red player has no valid move, consume dice automatically
+    call red_has_valid_move
+    cmp al, 1
+    je main_loop
+
+    ; No valid move available
+    call consume_dice
+    call draw_full_screen
     jmp main_loop
 
 ; -----------------------------------------
@@ -91,7 +113,8 @@ move_red_token_4:
 ; Rules:
 ; 1. Token can move only after fresh dice roll
 ; 2. Home token can leave only on dice 6
-; 3. Token already out moves by dice value
+; 3. Unlocking a token consumes the dice
+; 4. Already-out token moves by dice value
 ; -----------------------------------------
 move_red_token_by_si:
     ; Check if dice is available
@@ -109,36 +132,138 @@ move_red_token_by_si:
     cmp al, 6
     jne .invalid_move
 
-    ; Move token from home to starting position
+    ; Dice is 6 and token is home:
+    ; Bring token only to starting position
     mov byte [si], 0
 
-    ; Dice has been used
-    mov byte [dice_available], 0
+    ; Consume dice immediately
+    ; This prevents using the same 6 again
+    call consume_dice
 
     call draw_full_screen
     ret
 
+
 .already_out:
-    ; Move token forward by dice value
+    ; Token is already on board, so move by dice value
     mov al, [si]
     add al, [dice_value]
 
-    ; For now, stop movement after main path progress 51
-    ; Home lane will be added later
-    cmp al, 51
+    ; Token can move up to progress 57 only
+    ; 0-50  = main path
+    ; 51-56 = home lane
+    ; 57    = finished
+    cmp al, 57
     ja .invalid_move
 
     mov [si], al
 
-    ; Dice has been used
-    mov byte [dice_available], 0
+    ; Consume dice after movement
+    call consume_dice
 
     call draw_full_screen
     ret
 
+
 .invalid_move:
-    ; Invalid token selection does not use dice
+    ; Invalid token selection does not consume dice
     ret
+
+; -----------------------------------------
+; consume_dice
+; Marks dice as used and clears dice display value
+; -----------------------------------------
+consume_dice:
+    mov byte [dice_available], 0
+    mov byte [dice_value], 0
+    ret
+
+; -----------------------------------------
+; red_has_valid_move
+; output:
+; AL = 1 if at least one Red token can move
+; AL = 0 if no Red token can move
+;
+; Rules checked:
+; 1. Home token can move only if dice is 6
+; 2. Out token can move only if progress + dice <= 57
+; -----------------------------------------
+red_has_valid_move:
+    ; Check token 1
+    mov si, red_token_1_progress
+    call check_one_red_token_valid
+    cmp al, 1
+    je .yes
+
+    ; Check token 2
+    mov si, red_token_2_progress
+    call check_one_red_token_valid
+    cmp al, 1
+    je .yes
+
+    ; Check token 3
+    mov si, red_token_3_progress
+    call check_one_red_token_valid
+    cmp al, 1
+    je .yes
+
+    ; Check token 4
+    mov si, red_token_4_progress
+    call check_one_red_token_valid
+    cmp al, 1
+    je .yes
+
+    ; No token can move
+    mov al, 0
+    ret
+
+.yes:
+    mov al, 1
+    ret
+
+
+; -----------------------------------------
+; check_one_red_token_valid
+; input:
+; SI = token progress address
+; output:
+; AL = 1 valid
+; AL = 0 invalid
+; -----------------------------------------
+check_one_red_token_valid:
+    ; If token is home
+    mov al, [si]
+    cmp al, 255
+    jne .already_out
+
+    ; Home token can move only on dice 6
+    mov al, [dice_value]
+    cmp al, 6
+    je .valid
+
+    mov al, 0
+    ret
+
+.already_out:
+    ; Finished token cannot move
+    mov al, [si]
+    cmp al, 57
+    je .invalid
+
+    ; Check progress + dice <= 57
+    mov al, [si]
+    add al, [dice_value]
+    cmp al, 57
+    ja .invalid
+
+.valid:
+    mov al, 1
+    ret
+
+.invalid:
+    mov al, 0
+    ret
+
 
 stop_game:
     ; Return to text mode
@@ -587,11 +712,35 @@ draw_red_token_4:
 
 
 ; -----------------------------------------
-; Draw Red token on main path
+; Draw Red token based on progress
 ; input:
-; AL = token progress, 0 to 51
+; AL = token progress
+;
+; 0-50  = main path
+; 51-56 = red home lane
+; 57    = finished area
 ; -----------------------------------------
 draw_red_token_on_path:
+    cmp al, 51
+    jb .main_path
+
+    cmp al, 57
+    je .finished
+
+    ; Home lane: progress 51-56
+    ; lane_index = progress - 51
+    sub al, 51
+    xor ah, ah
+    mov si, ax
+
+    mov bl, [red_lane_x + si]
+    mov bh, [red_lane_y + si]
+    mov al, 4
+    call draw_token_on_cell
+    ret
+
+
+.main_path:
     ; path_index = RED_START_INDEX + progress
     add al, RED_START_INDEX
 
@@ -608,6 +757,15 @@ draw_red_token_on_path:
     mov bh, [path_y + si]
     mov al, 4
     call draw_token_on_cell
+    ret
+
+
+.finished:
+    ; Draw finished token inside center area
+    mov bx, BOARD_X + 85
+    mov dx, BOARD_Y + 85
+    mov al, 4
+    call draw_token
     ret
 
 ; -----------------------------------------
