@@ -9,6 +9,7 @@ DICE_X equ 260
 DICE_Y equ 80
 
 RED_START_INDEX equ 13
+GREEN_START_INDEX equ 26
 start:
     cld
 
@@ -23,11 +24,16 @@ start:
     mov ax, 0xA000
     mov es, ax
 
-    mov byte [dice_value], 1
+    mov byte [dice_value], 0
 
     call draw_full_screen
 
 main_loop:
+    ; If game is over, only allow ESC
+    mov al, [game_over]
+    cmp al, 1
+    je game_over_loop
+
     ; Wait for key press
     mov ah, 0x00
     int 0x16
@@ -51,6 +57,19 @@ main_loop:
     cmp al, '4'
     je move_red_token_4
 
+    ; 5-8 = move Green tokens temporarily
+    cmp al, '5'
+    je move_green_token_1
+
+    cmp al, '6'
+    je move_green_token_2
+
+    cmp al, '7'
+    je move_green_token_3
+
+    cmp al, '8'
+    je move_green_token_4
+
     ; ESC = stop
     cmp al, 27
     je stop_game
@@ -60,6 +79,16 @@ main_loop:
     je stop_game
 
     jmp main_loop
+
+game_over_loop:
+    mov ah, 0x00
+    int 0x16
+
+    cmp al, 27
+    je stop_game
+
+    jmp game_over_loop
+
 
 roll_key:
     ; If dice is already available, do not roll again
@@ -72,7 +101,7 @@ roll_key:
     call draw_dice
 
     ; If Red player has no valid move, consume dice automatically
-    call red_has_valid_move
+    call red_or_green_has_valid_move
     cmp al, 1
     je main_loop
 
@@ -104,6 +133,34 @@ move_red_token_4:
     call move_red_token_by_si
     jmp main_loop
 
+
+; -----------------------------------------
+; Green token movement wrappers
+; Temporary controls:
+; 5 = Green Token 1
+; 6 = Green Token 2
+; 7 = Green Token 3
+; 8 = Green Token 4
+; -----------------------------------------
+move_green_token_1:
+    mov si, green_token_1_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+move_green_token_2:
+    mov si, green_token_2_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+move_green_token_3:
+    mov si, green_token_3_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+move_green_token_4:
+    mov si, green_token_4_progress
+    call move_red_token_by_si
+    jmp main_loop
 
 ; -----------------------------------------
 ; move_red_token_by_si
@@ -138,10 +195,14 @@ move_red_token_by_si:
 
     ; Consume dice immediately
     ; This prevents using the same 6 again
-    call consume_dice
+   call consume_dice
+
+    call check_red_winner
+    cmp al, 1
+    je .red_won
 
     call draw_full_screen
-    ret
+    ret 
 
 
 .already_out:
@@ -153,7 +214,7 @@ move_red_token_by_si:
     ; 0-50  = main path
     ; 51-56 = home lane
     ; 57    = finished
-    cmp al, 57
+    cmp al, 56
     ja .invalid_move
 
     mov [si], al
@@ -161,9 +222,17 @@ move_red_token_by_si:
     ; Consume dice after movement
     call consume_dice
 
+    call check_red_winner
+    cmp al, 1
+    je .red_won
+
     call draw_full_screen
     ret
 
+.red_won:
+    mov byte [game_over], 1
+    call draw_red_win_screen
+    ret
 
 .invalid_move:
     ; Invalid token selection does not consume dice
@@ -253,7 +322,7 @@ check_one_red_token_valid:
     ; Check progress + dice <= 57
     mov al, [si]
     add al, [dice_value]
-    cmp al, 57
+    cmp al, 56
     ja .invalid
 
 .valid:
@@ -264,6 +333,135 @@ check_one_red_token_valid:
     mov al, 0
     ret
 
+; -----------------------------------------
+; check_red_winner
+; output:
+; AL = 1 if all 4 Red tokens are finished
+; AL = 0 otherwise
+; -----------------------------------------
+check_red_winner:
+    mov al, [red_token_1_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, [red_token_2_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, [red_token_3_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, [red_token_4_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, 1
+    ret
+
+.no:
+    mov al, 0
+    ret
+
+
+; -----------------------------------------
+; draw_red_win_screen
+; Simple graphics victory screen for Red
+; -----------------------------------------
+draw_red_win_screen:
+    ; Fill screen with red
+    xor di, di
+    mov al, 4
+    mov cx, 64000
+    rep stosb
+
+    ; White center panel
+    mov bx, 90
+    mov dx, 60
+    mov si, 140
+    mov bp, 80
+    mov al, 15
+    call draw_rect
+
+    ; Red tokens inside panel
+    mov bx, 125
+    mov dx, 85
+    mov al, 4
+    call draw_token
+
+    mov bx, 155
+    mov dx, 85
+    mov al, 4
+    call draw_token
+
+    mov bx, 125
+    mov dx, 110
+    mov al, 4
+    call draw_token
+
+    mov bx, 155
+    mov dx, 110
+    mov al, 4
+    call draw_token
+
+    ret
+
+
+; -----------------------------------------
+; red_or_green_has_valid_move
+; output:
+; AL = 1 if Red or Green has at least one valid move
+; AL = 0 if neither can move
+; -----------------------------------------
+red_or_green_has_valid_move:
+    call red_has_valid_move
+    cmp al, 1
+    je .yes
+
+    call green_has_valid_move
+    cmp al, 1
+    je .yes
+
+    mov al, 0
+    ret
+
+.yes:
+    mov al, 1
+    ret
+
+; -----------------------------------------
+; green_has_valid_move
+; output:
+; AL = 1 if at least one Green token can move
+; AL = 0 if no Green token can move
+; -----------------------------------------
+green_has_valid_move:
+    mov si, green_token_1_progress
+    call check_one_red_token_valid
+    cmp al, 1
+    je .yes
+
+    mov si, green_token_2_progress
+    call check_one_red_token_valid
+    cmp al, 1
+    je .yes
+
+    mov si, green_token_3_progress
+    call check_one_red_token_valid
+    cmp al, 1
+    je .yes
+
+    mov si, green_token_4_progress
+    call check_one_red_token_valid
+    cmp al, 1
+    je .yes
+
+    mov al, 0
+    ret
+
+.yes:
+    mov al, 1
+    ret
 
 stop_game:
     ; Return to text mode
@@ -567,33 +765,32 @@ draw_home_lanes:
     ; Red lane
     mov si, red_lane_x
     mov di, red_lane_y
-    mov cx, 5
+    mov cx, 6
     mov al, 4
     call draw_cells_from_table
 
     ; Green lane
     mov si, green_lane_x
     mov di, green_lane_y
-    mov cx, 5
+    mov cx, 6
     mov al, 2
     call draw_cells_from_table
 
     ; Yellow lane
     mov si, yellow_lane_x
     mov di, yellow_lane_y
-    mov cx, 5
+    mov cx, 6
     mov al, 14
     call draw_cells_from_table
 
     ; Blue lane
     mov si, blue_lane_x
     mov di, blue_lane_y
-    mov cx, 5
+    mov cx, 6
     mov al, 1
     call draw_cells_from_table
 
     ret
-
 
 draw_cells_from_table:
 .next:
@@ -717,14 +914,14 @@ draw_red_token_4:
 ; AL = token progress
 ;
 ; 0-50  = main path
-; 51-56 = red home lane
-; 57    = finished area
+; 51-55 = red home lane
+; 56    = finished area
 ; -----------------------------------------
 draw_red_token_on_path:
     cmp al, 51
     jb .main_path
 
-    cmp al, 57
+    cmp al, 56
     je .finished
 
     ; Home lane: progress 51-56
@@ -761,11 +958,144 @@ draw_red_token_on_path:
 
 
 .finished:
-    ; Draw finished token inside center area
-    mov bx, BOARD_X + 85
-    mov dx, BOARD_Y + 85
+    ; Red finished token stays at the last red home-lane cell near center
+    mov bl, 6
+    mov bh, 7
     mov al, 4
+    call draw_token_on_cell
+    ret
+
+; -----------------------------------------
+; Draw Green Token 1
+; -----------------------------------------
+draw_green_token_1:
+    mov al, [green_token_1_progress]
+    cmp al, 255
+    je .home
+
+    call draw_green_token_on_path
+    ret
+
+.home:
+    mov bx, BOARD_X + 126
+    mov dx, BOARD_Y + 18
+    mov al, 2
     call draw_token
+    ret
+
+
+; -----------------------------------------
+; Draw Green Token 2
+; -----------------------------------------
+draw_green_token_2:
+    mov al, [green_token_2_progress]
+    cmp al, 255
+    je .home
+
+    call draw_green_token_on_path
+    ret
+
+.home:
+    mov bx, BOARD_X + 150
+    mov dx, BOARD_Y + 18
+    mov al, 2
+    call draw_token
+    ret
+
+
+; -----------------------------------------
+; Draw Green Token 3
+; -----------------------------------------
+draw_green_token_3:
+    mov al, [green_token_3_progress]
+    cmp al, 255
+    je .home
+
+    call draw_green_token_on_path
+    ret
+
+.home:
+    mov bx, BOARD_X + 126
+    mov dx, BOARD_Y + 42
+    mov al, 2
+    call draw_token
+    ret
+
+
+; -----------------------------------------
+; Draw Green Token 4
+; -----------------------------------------
+draw_green_token_4:
+    mov al, [green_token_4_progress]
+    cmp al, 255
+    je .home
+
+    call draw_green_token_on_path
+    ret
+
+.home:
+    mov bx, BOARD_X + 150
+    mov dx, BOARD_Y + 42
+    mov al, 2
+    call draw_token
+    ret
+
+
+; -----------------------------------------
+; Draw Green token based on progress
+; input:
+; AL = token progress
+;
+; 0-50  = main path
+; 51-55 = green home lane
+; 56    = finished area
+; -----------------------------------------
+draw_green_token_on_path:
+    cmp al, 51
+    jb .main_path
+
+    cmp al, 56
+    je .finished
+
+    ; Home lane: progress 51-56
+    ; lane_index = progress - 51
+    sub al, 51
+    xor ah, ah
+    mov si, ax
+
+    mov bl, [green_lane_x + si]
+    mov bh, [green_lane_y + si]
+    mov al, 2
+    call draw_token_on_cell
+    ret
+
+
+.main_path:
+    ; path_index = GREEN_START_INDEX + progress
+    add al, GREEN_START_INDEX
+
+    ; If path_index >= 52, subtract 52
+    cmp al, 52
+    jb .index_ready
+    sub al, 52
+
+.index_ready:
+    xor ah, ah
+    mov si, ax
+
+    mov bl, [path_x + si]
+    mov bh, [path_y + si]
+    mov al, 2
+    call draw_token_on_cell
+    ret
+
+
+.finished:
+    ; Green finished token stays at the last green home-lane cell near center
+    mov bl, 7
+    mov bh, 6
+    mov al, 2
+    call draw_token_on_cell
     ret
 
 ; -----------------------------------------
@@ -781,25 +1111,10 @@ draw_all_tokens:
     call draw_red_token_4
 
     ; Green tokens
-    mov bx, BOARD_X + 126
-    mov dx, BOARD_Y + 18
-    mov al, 2
-    call draw_token
-
-    mov bx, BOARD_X + 150
-    mov dx, BOARD_Y + 18
-    mov al, 2
-    call draw_token
-
-    mov bx, BOARD_X + 126
-    mov dx, BOARD_Y + 42
-    mov al, 2
-    call draw_token
-
-    mov bx, BOARD_X + 150
-    mov dx, BOARD_Y + 42
-    mov al, 2
-    call draw_token
+    call draw_green_token_1
+    call draw_green_token_2
+    call draw_green_token_3
+    call draw_green_token_4
 
     ; Yellow tokens
     mov bx, BOARD_X + 18
@@ -1056,27 +1371,28 @@ path_y:
 
 ; -----------------------------------------
 ; Home lane coordinates
+; 6 cells each because progress 51-56 = home lane
 ; -----------------------------------------
+
 red_lane_x:
-    db 1,2,3,4,5
+    db 1,2,3,4,5,6
 red_lane_y:
-    db 7,7,7,7,7
+    db 7,7,7,7,7,7
 
 green_lane_x:
-    db 7,7,7,7,7
+    db 7,7,7,7,7,7
 green_lane_y:
-    db 1,2,3,4,5
+    db 1,2,3,4,5,6
 
 yellow_lane_x:
-    db 7,7,7,7,7
+    db 7,7,7,7,7,7
 yellow_lane_y:
-    db 13,12,11,10,9
+    db 13,12,11,10,9,8
 
 blue_lane_x:
-    db 13,12,11,10,9
+    db 13,12,11,10,9,8
 blue_lane_y:
-    db 7,7,7,7,7
-
+    db 7,7,7,7,7,7
 
 ; -----------------------------------------
 ; Variables
@@ -1087,7 +1403,7 @@ grid_x db 0
 grid_y db 0
 token_color db 0
 
-dice_value db 1
+dice_value db 0
 random_seed dw 1234
 
 red_token_1_progress db 255
@@ -1095,4 +1411,10 @@ red_token_2_progress db 255
 red_token_3_progress db 255
 red_token_4_progress db 255
 
+green_token_1_progress db 255
+green_token_2_progress db 255
+green_token_3_progress db 255
+green_token_4_progress db 255
+
 dice_available db 0
+game_over db 0
