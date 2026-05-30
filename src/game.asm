@@ -46,74 +46,18 @@ main_loop:
     cmp al, 'd'
     je roll_key
 
-    ; 1-4 = move Red tokens
+    ; 1-4 = move current player's tokens
     cmp al, '1'
-    je move_red_token_1
+    je select_token_1
 
     cmp al, '2'
-    je move_red_token_2
+    je select_token_2
 
     cmp al, '3'
-    je move_red_token_3
+    je select_token_3
 
     cmp al, '4'
-    je move_red_token_4
-
-    ; 5-8 = move Green tokens temporarily
-    cmp al, '5'
-    je move_green_token_1
-
-    cmp al, '6'
-    je move_green_token_2
-
-    cmp al, '7'
-    je move_green_token_3
-
-    cmp al, '8'
-    je move_green_token_4
-
-    ; Q/W/E/R = move Yellow tokens temporarily
-    cmp al, 'q'
-    je move_yellow_token_1
-    cmp al, 'Q'
-    je move_yellow_token_1
-
-    cmp al, 'w'
-    je move_yellow_token_2
-    cmp al, 'W'
-    je move_yellow_token_2
-
-    cmp al, 'e'
-    je move_yellow_token_3
-    cmp al, 'E'
-    je move_yellow_token_3
-
-    cmp al, 'r'
-    je move_yellow_token_4
-    cmp al, 'R'
-    je move_yellow_token_4
-
-
-    ; A/S/F/G = move Blue tokens temporarily
-    cmp al, 'a'
-    je move_blue_token_1
-    cmp al, 'A'
-    je move_blue_token_1
-
-    cmp al, 's'
-    je move_blue_token_2
-    cmp al, 'S'
-    je move_blue_token_2
-
-    cmp al, 'f'
-    je move_blue_token_3
-    cmp al, 'F'
-    je move_blue_token_3
-
-    cmp al, 'g'
-    je move_blue_token_4
-    cmp al, 'G'
-    je move_blue_token_4
+    je select_token_4
 
     ; ESC = stop
     cmp al, 27
@@ -145,14 +89,155 @@ roll_key:
     mov byte [dice_available], 1
     call draw_dice
 
-    ; If Red player has no valid move, consume dice automatically
-    call any_player_has_valid_move
+    ; Check only current player's valid moves
+    call current_player_has_valid_move
     cmp al, 1
     je main_loop
 
-    ; No valid move available
+    ; No valid move available, pass turn
     call consume_dice
+    call next_player
     call draw_full_screen
+    jmp main_loop
+    
+; -----------------------------------------
+; Current player token selection
+; current_player:
+; 0 = Red
+; 1 = Green
+; 2 = Blue
+; 3 = Yellow
+; -----------------------------------------
+
+select_token_1:
+    mov al, [current_player]
+
+    cmp al, 0
+    je .red
+    cmp al, 1
+    je .green
+    cmp al, 2
+    je .blue
+    cmp al, 3
+    je .yellow
+
+.red:
+    mov si, red_token_1_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+.green:
+    mov si, green_token_1_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+.blue:
+    mov si, blue_token_1_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+.yellow:
+    mov si, yellow_token_1_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+
+select_token_2:
+    mov al, [current_player]
+
+    cmp al, 0
+    je .red
+    cmp al, 1
+    je .green
+    cmp al, 2
+    je .blue
+    cmp al, 3
+    je .yellow
+
+.red:
+    mov si, red_token_2_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+.green:
+    mov si, green_token_2_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+.blue:
+    mov si, blue_token_2_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+.yellow:
+    mov si, yellow_token_2_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+
+select_token_3:
+    mov al, [current_player]
+
+    cmp al, 0
+    je .red
+    cmp al, 1
+    je .green
+    cmp al, 2
+    je .blue
+    cmp al, 3
+    je .yellow
+
+.red:
+    mov si, red_token_3_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+.green:
+    mov si, green_token_3_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+.blue:
+    mov si, blue_token_3_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+.yellow:
+    mov si, yellow_token_3_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+
+select_token_4:
+    mov al, [current_player]
+
+    cmp al, 0
+    je .red
+    cmp al, 1
+    je .green
+    cmp al, 2
+    je .blue
+    cmp al, 3
+    je .yellow
+
+.red:
+    mov si, red_token_4_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+.green:
+    mov si, green_token_4_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+.blue:
+    mov si, blue_token_4_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+.yellow:
+    mov si, yellow_token_4_progress
+    call move_red_token_by_si
     jmp main_loop
 
 ; -----------------------------------------
@@ -295,16 +380,7 @@ move_red_token_by_si:
     ; Bring token only to starting position
     mov byte [si], 0
 
-    ; Consume dice immediately
-    ; This prevents using the same 6 again
-   call consume_dice
-
-    call check_red_winner
-    cmp al, 1
-    je .red_won
-
-    call draw_full_screen
-    ret 
+    jmp .successful_move
 
 
 .already_out:
@@ -312,34 +388,62 @@ move_red_token_by_si:
     mov al, [si]
     add al, [dice_value]
 
-    ; Token can move up to progress 57 only
+    ; Token can move up to progress 56 only
     ; 0-50  = main path
-    ; 51-56 = home lane
-    ; 57    = finished
+    ; 51-55 = home lane
+    ; 56    = finished/final cell
     cmp al, 56
     ja .invalid_move
 
     mov [si], al
 
-    ; Consume dice after movement
+    jmp .successful_move
+
+
+.successful_move:
+    ; Save dice before clearing it
+    mov al, [dice_value]
+    mov [last_dice], al
+
+    ; Consume dice after successful move
     call consume_dice
+
+    ; For now, only Red winner detection is implemented
+    ; Check Red winner only when current player is Red
+    mov al, [current_player]
+    cmp al, 0
+    jne .turn_logic
 
     call check_red_winner
     cmp al, 1
     je .red_won
 
+
+.turn_logic:
+    ; Dice 6 gives same player another turn
+    mov al, [last_dice]
+    cmp al, 6
+    je .same_player_turn
+
+    ; Dice was not 6, pass turn
+    call next_player
+
+
+.same_player_turn:
     call draw_full_screen
     ret
+
 
 .red_won:
     mov byte [game_over], 1
     call draw_red_win_screen
     ret
 
+
 .invalid_move:
     ; Invalid token selection does not consume dice
     ret
-
+    
 ; -----------------------------------------
 ; consume_dice
 ; Marks dice as used and clears dice display value
@@ -693,6 +797,72 @@ blue_has_valid_move:
     ret
 
 
+; -----------------------------------------
+; next_player
+; Turn order:
+; Red -> Green -> Blue -> Yellow -> Red
+;
+; current_player:
+; 0 = Red
+; 1 = Green
+; 2 = Blue
+; 3 = Yellow
+; -----------------------------------------
+next_player:
+    inc byte [current_player]
+
+    cmp byte [current_player], 4
+    jb .done
+
+    mov byte [current_player], 0
+
+.done:
+    ret
+
+; -----------------------------------------
+; current_player_has_valid_move
+; output:
+; AL = 1 if current player has a valid move
+; AL = 0 if current player has no valid move
+;
+; current_player:
+; 0 = Red
+; 1 = Green
+; 2 = Blue
+; 3 = Yellow
+; -----------------------------------------
+current_player_has_valid_move:
+    mov al, [current_player]
+
+    cmp al, 0
+    je .red
+
+    cmp al, 1
+    je .green
+
+    cmp al, 2
+    je .blue
+
+    cmp al, 3
+    je .yellow
+
+.red:
+    call red_has_valid_move
+    ret
+
+.green:
+    call green_has_valid_move
+    ret
+
+.blue:
+    call blue_has_valid_move
+    ret
+
+.yellow:
+    call yellow_has_valid_move
+    ret
+
+
 stop_game:
     ; Return to text mode
     mov ax, 0x0003
@@ -702,6 +872,64 @@ hang:
     hlt
     jmp hang
 
+; -----------------------------------------
+; draw_current_player_indicator
+; Shows whose turn it is using a color box
+;
+; current_player:
+; 0 = Red
+; 1 = Green
+; 2 = Blue
+; 3 = Yellow
+; -----------------------------------------
+draw_current_player_indicator:
+    ; Black outer box
+    mov bx, 260
+    mov dx, 25
+    mov si, 42
+    mov bp, 42
+    mov al, 0
+    call draw_rect
+
+    ; Choose color based on current_player
+    mov al, [current_player]
+
+    cmp al, 0
+    je .red
+
+    cmp al, 1
+    je .green
+
+    cmp al, 2
+    je .blue
+
+    cmp al, 3
+    je .yellow
+
+.red:
+    mov al, 4
+    jmp .draw
+
+.green:
+    mov al, 2
+    jmp .draw
+
+.blue:
+    mov al, 1
+    jmp .draw
+
+.yellow:
+    mov al, 14
+
+.draw:
+    ; Inner color box
+    mov bx, 264
+    mov dx, 29
+    mov si, 34
+    mov bp, 34
+    call draw_rect
+
+    ret
 
 ; -----------------------------------------
 ; Draw complete screen
@@ -714,6 +942,7 @@ draw_full_screen:
     call draw_center_box
     call draw_all_tokens
     call draw_dice
+    call draw_current_player_indicator
     ret
 
 
@@ -1894,6 +2123,8 @@ blue_token_2_progress db 255
 blue_token_3_progress db 255
 blue_token_4_progress db 255
 
+current_player db 0
+last_dice db 0
 
 dice_available db 0
 game_over db 0
