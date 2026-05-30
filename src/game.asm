@@ -10,6 +10,7 @@ DICE_Y equ 80
 
 RED_START_INDEX equ 13
 GREEN_START_INDEX equ 26
+YELLOW_START_INDEX equ 0
 start:
     cld
 
@@ -70,6 +71,28 @@ main_loop:
     cmp al, '8'
     je move_green_token_4
 
+    ; Q/W/E/R = move Yellow tokens temporarily
+    cmp al, 'q'
+    je move_yellow_token_1
+    cmp al, 'Q'
+    je move_yellow_token_1
+
+    cmp al, 'w'
+    je move_yellow_token_2
+    cmp al, 'W'
+    je move_yellow_token_2
+
+    cmp al, 'e'
+    je move_yellow_token_3
+    cmp al, 'E'
+    je move_yellow_token_3
+
+    cmp al, 'r'
+    je move_yellow_token_4
+    cmp al, 'R'
+    je move_yellow_token_4
+
+
     ; ESC = stop
     cmp al, 27
     je stop_game
@@ -101,7 +124,7 @@ roll_key:
     call draw_dice
 
     ; If Red player has no valid move, consume dice automatically
-    call red_or_green_has_valid_move
+    call red_green_yellow_has_valid_move
     cmp al, 1
     je main_loop
 
@@ -159,6 +182,34 @@ move_green_token_3:
 
 move_green_token_4:
     mov si, green_token_4_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+; -----------------------------------------
+; Yellow token movement wrappers
+; Temporary controls:
+; Q = Yellow Token 1
+; W = Yellow Token 2
+; E = Yellow Token 3
+; R = Yellow Token 4
+; -----------------------------------------
+move_yellow_token_1:
+    mov si, yellow_token_1_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+move_yellow_token_2:
+    mov si, yellow_token_2_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+move_yellow_token_3:
+    mov si, yellow_token_3_progress
+    call move_red_token_by_si
+    jmp main_loop
+
+move_yellow_token_4:
+    mov si, yellow_token_4_progress
     call move_red_token_by_si
     jmp main_loop
 
@@ -452,6 +503,67 @@ green_has_valid_move:
     je .yes
 
     mov si, green_token_4_progress
+    call check_one_red_token_valid
+    cmp al, 1
+    je .yes
+
+    mov al, 0
+    ret
+
+.yes:
+    mov al, 1
+    ret
+
+; -----------------------------------------
+; red_green_yellow_has_valid_move
+; output:
+; AL = 1 if any Red/Green/Yellow token can move
+; AL = 0 if none can move
+; -----------------------------------------
+red_green_yellow_has_valid_move:
+    call red_has_valid_move
+    cmp al, 1
+    je .yes
+
+    call green_has_valid_move
+    cmp al, 1
+    je .yes
+
+    call yellow_has_valid_move
+    cmp al, 1
+    je .yes
+
+    mov al, 0
+    ret
+
+.yes:
+    mov al, 1
+    ret
+
+
+; -----------------------------------------
+; yellow_has_valid_move
+; output:
+; AL = 1 if at least one Yellow token can move
+; AL = 0 if no Yellow token can move
+; -----------------------------------------
+yellow_has_valid_move:
+    mov si, yellow_token_1_progress
+    call check_one_red_token_valid
+    cmp al, 1
+    je .yes
+
+    mov si, yellow_token_2_progress
+    call check_one_red_token_valid
+    cmp al, 1
+    je .yes
+
+    mov si, yellow_token_3_progress
+    call check_one_red_token_valid
+    cmp al, 1
+    je .yes
+
+    mov si, yellow_token_4_progress
     call check_one_red_token_valid
     cmp al, 1
     je .yes
@@ -1099,6 +1211,139 @@ draw_green_token_on_path:
     ret
 
 ; -----------------------------------------
+; Draw Yellow Token 1
+; -----------------------------------------
+draw_yellow_token_1:
+    mov al, [yellow_token_1_progress]
+    cmp al, 255
+    je .home
+
+    call draw_yellow_token_on_path
+    ret
+
+.home:
+    mov bx, BOARD_X + 18
+    mov dx, BOARD_Y + 126
+    mov al, 14
+    call draw_token
+    ret
+
+
+; -----------------------------------------
+; Draw Yellow Token 2
+; -----------------------------------------
+draw_yellow_token_2:
+    mov al, [yellow_token_2_progress]
+    cmp al, 255
+    je .home
+
+    call draw_yellow_token_on_path
+    ret
+
+.home:
+    mov bx, BOARD_X + 42
+    mov dx, BOARD_Y + 126
+    mov al, 14
+    call draw_token
+    ret
+
+
+; -----------------------------------------
+; Draw Yellow Token 3
+; -----------------------------------------
+draw_yellow_token_3:
+    mov al, [yellow_token_3_progress]
+    cmp al, 255
+    je .home
+
+    call draw_yellow_token_on_path
+    ret
+
+.home:
+    mov bx, BOARD_X + 18
+    mov dx, BOARD_Y + 150
+    mov al, 14
+    call draw_token
+    ret
+
+
+; -----------------------------------------
+; Draw Yellow Token 4
+; -----------------------------------------
+draw_yellow_token_4:
+    mov al, [yellow_token_4_progress]
+    cmp al, 255
+    je .home
+
+    call draw_yellow_token_on_path
+    ret
+
+.home:
+    mov bx, BOARD_X + 42
+    mov dx, BOARD_Y + 150
+    mov al, 14
+    call draw_token
+    ret
+
+
+; -----------------------------------------
+; Draw Yellow token based on progress
+; input:
+; AL = token progress
+;
+; 0-50  = main path
+; 51-55 = yellow home lane
+; 56    = finished/final cell
+; -----------------------------------------
+draw_yellow_token_on_path:
+    cmp al, 51
+    jb .main_path
+
+    cmp al, 56
+    je .finished
+
+    ; Home lane: progress 51-55
+    ; lane_index = progress - 51
+    sub al, 51
+    xor ah, ah
+    mov si, ax
+
+    mov bl, [yellow_lane_x + si]
+    mov bh, [yellow_lane_y + si]
+    mov al, 14
+    call draw_token_on_cell
+    ret
+
+
+.main_path:
+    ; path_index = YELLOW_START_INDEX + progress
+    add al, YELLOW_START_INDEX
+
+    ; If path_index >= 52, subtract 52
+    cmp al, 52
+    jb .index_ready
+    sub al, 52
+
+.index_ready:
+    xor ah, ah
+    mov si, ax
+
+    mov bl, [path_x + si]
+    mov bh, [path_y + si]
+    mov al, 14
+    call draw_token_on_cell
+    ret
+
+
+.finished:
+    ; Yellow finished token stays at final cell near center
+    mov bl, 7
+    mov bh, 8
+    mov al, 14
+    call draw_token_on_cell
+    ret
+
+; -----------------------------------------
 ; Draw all 16 tokens
 ; Red tokens are dynamic/movable
 ; Green, Yellow, Blue tokens are still fixed in home
@@ -1117,25 +1362,10 @@ draw_all_tokens:
     call draw_green_token_4
 
     ; Yellow tokens
-    mov bx, BOARD_X + 18
-    mov dx, BOARD_Y + 126
-    mov al, 14
-    call draw_token
-
-    mov bx, BOARD_X + 42
-    mov dx, BOARD_Y + 126
-    mov al, 14
-    call draw_token
-
-    mov bx, BOARD_X + 18
-    mov dx, BOARD_Y + 150
-    mov al, 14
-    call draw_token
-
-    mov bx, BOARD_X + 42
-    mov dx, BOARD_Y + 150
-    mov al, 14
-    call draw_token
+    call draw_yellow_token_1
+    call draw_yellow_token_2
+    call draw_yellow_token_3
+    call draw_yellow_token_4
 
     ; Blue tokens
     mov bx, BOARD_X + 126
@@ -1415,6 +1645,12 @@ green_token_1_progress db 255
 green_token_2_progress db 255
 green_token_3_progress db 255
 green_token_4_progress db 255
+
+yellow_token_1_progress db 255
+yellow_token_2_progress db 255
+yellow_token_3_progress db 255
+yellow_token_4_progress db 255
+
 
 dice_available db 0
 game_over db 0
