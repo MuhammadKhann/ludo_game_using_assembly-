@@ -12,6 +12,15 @@ RED_START_INDEX equ 13
 GREEN_START_INDEX equ 26
 YELLOW_START_INDEX equ 0
 BLUE_START_INDEX equ 39
+
+active_token_dots db 0
+dot_count db 0
+dot_base_x dw 0
+dot_base_y dw 0
+
+cell_token_color db 0
+cell_token_x db 0
+cell_token_y db 0
 start:
     cld
 
@@ -443,7 +452,7 @@ move_red_token_by_si:
 .invalid_move:
     ; Invalid token selection does not consume dice
     ret
-    
+
 ; -----------------------------------------
 ; consume_dice
 ; Marks dice as used and clears dice display value
@@ -1295,6 +1304,9 @@ draw_center_box:
 ; Draw Red Token 1
 ; -----------------------------------------
 draw_red_token_1:
+    
+    mov byte [active_token_dots], 1
+    
     mov al, [red_token_1_progress]
     cmp al, 255
     je .home
@@ -1306,7 +1318,8 @@ draw_red_token_1:
     mov bx, BOARD_X + 18
     mov dx, BOARD_Y + 18
     mov al, 4
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1314,6 +1327,8 @@ draw_red_token_1:
 ; Draw Red Token 2
 ; -----------------------------------------
 draw_red_token_2:
+    mov byte [active_token_dots], 2
+
     mov al, [red_token_2_progress]
     cmp al, 255
     je .home
@@ -1325,7 +1340,8 @@ draw_red_token_2:
     mov bx, BOARD_X + 42
     mov dx, BOARD_Y + 18
     mov al, 4
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1333,6 +1349,7 @@ draw_red_token_2:
 ; Draw Red Token 3
 ; -----------------------------------------
 draw_red_token_3:
+    mov byte [active_token_dots], 3
     mov al, [red_token_3_progress]
     cmp al, 255
     je .home
@@ -1344,7 +1361,8 @@ draw_red_token_3:
     mov bx, BOARD_X + 18
     mov dx, BOARD_Y + 42
     mov al, 4
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1352,6 +1370,7 @@ draw_red_token_3:
 ; Draw Red Token 4
 ; -----------------------------------------
 draw_red_token_4:
+    mov byte [active_token_dots], 4
     mov al, [red_token_4_progress]
     cmp al, 255
     je .home
@@ -1363,7 +1382,8 @@ draw_red_token_4:
     mov bx, BOARD_X + 42
     mov dx, BOARD_Y + 42
     mov al, 4
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1428,6 +1448,7 @@ draw_red_token_on_path:
 ; Draw Green Token 1
 ; -----------------------------------------
 draw_green_token_1:
+    mov byte [active_token_dots], 1
     mov al, [green_token_1_progress]
     cmp al, 255
     je .home
@@ -1439,7 +1460,8 @@ draw_green_token_1:
     mov bx, BOARD_X + 126
     mov dx, BOARD_Y + 18
     mov al, 2
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1447,6 +1469,7 @@ draw_green_token_1:
 ; Draw Green Token 2
 ; -----------------------------------------
 draw_green_token_2:
+    mov byte [active_token_dots], 2
     mov al, [green_token_2_progress]
     cmp al, 255
     je .home
@@ -1458,7 +1481,8 @@ draw_green_token_2:
     mov bx, BOARD_X + 150
     mov dx, BOARD_Y + 18
     mov al, 2
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1466,6 +1490,7 @@ draw_green_token_2:
 ; Draw Green Token 3
 ; -----------------------------------------
 draw_green_token_3:
+    mov byte [active_token_dots], 3
     mov al, [green_token_3_progress]
     cmp al, 255
     je .home
@@ -1477,7 +1502,8 @@ draw_green_token_3:
     mov bx, BOARD_X + 126
     mov dx, BOARD_Y + 42
     mov al, 2
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1485,6 +1511,7 @@ draw_green_token_3:
 ; Draw Green Token 4
 ; -----------------------------------------
 draw_green_token_4:
+    mov byte [active_token_dots], 4
     mov al, [green_token_4_progress]
     cmp al, 255
     je .home
@@ -1496,7 +1523,8 @@ draw_green_token_4:
     mov bx, BOARD_X + 150
     mov dx, BOARD_Y + 42
     mov al, 2
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1561,6 +1589,8 @@ draw_green_token_on_path:
 ; Draw Yellow Token 1
 ; -----------------------------------------
 draw_yellow_token_1:
+
+    mov byte [active_token_dots], 1
     mov al, [yellow_token_1_progress]
     cmp al, 255
     je .home
@@ -1572,7 +1602,8 @@ draw_yellow_token_1:
     mov bx, BOARD_X + 18
     mov dx, BOARD_Y + 126
     mov al, 14
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1580,6 +1611,7 @@ draw_yellow_token_1:
 ; Draw Yellow Token 2
 ; -----------------------------------------
 draw_yellow_token_2:
+    mov byte [active_token_dots], 2
     mov al, [yellow_token_2_progress]
     cmp al, 255
     je .home
@@ -1591,7 +1623,8 @@ draw_yellow_token_2:
     mov bx, BOARD_X + 42
     mov dx, BOARD_Y + 126
     mov al, 14
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1599,6 +1632,7 @@ draw_yellow_token_2:
 ; Draw Yellow Token 3
 ; -----------------------------------------
 draw_yellow_token_3:
+    mov byte [active_token_dots], 3
     mov al, [yellow_token_3_progress]
     cmp al, 255
     je .home
@@ -1610,7 +1644,8 @@ draw_yellow_token_3:
     mov bx, BOARD_X + 18
     mov dx, BOARD_Y + 150
     mov al, 14
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1618,6 +1653,7 @@ draw_yellow_token_3:
 ; Draw Yellow Token 4
 ; -----------------------------------------
 draw_yellow_token_4:
+    mov byte [active_token_dots], 4
     mov al, [yellow_token_4_progress]
     cmp al, 255
     je .home
@@ -1629,7 +1665,8 @@ draw_yellow_token_4:
     mov bx, BOARD_X + 42
     mov dx, BOARD_Y + 150
     mov al, 14
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1695,6 +1732,7 @@ draw_yellow_token_on_path:
 ; Draw Blue Token 1
 ; -----------------------------------------
 draw_blue_token_1:
+    mov byte [active_token_dots], 1
     mov al, [blue_token_1_progress]
     cmp al, 255
     je .home
@@ -1706,7 +1744,8 @@ draw_blue_token_1:
     mov bx, BOARD_X + 126
     mov dx, BOARD_Y + 126
     mov al, 1
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1714,6 +1753,7 @@ draw_blue_token_1:
 ; Draw Blue Token 2
 ; -----------------------------------------
 draw_blue_token_2:
+    mov byte [active_token_dots], 2
     mov al, [blue_token_2_progress]
     cmp al, 255
     je .home
@@ -1725,7 +1765,8 @@ draw_blue_token_2:
     mov bx, BOARD_X + 150
     mov dx, BOARD_Y + 126
     mov al, 1
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1733,6 +1774,7 @@ draw_blue_token_2:
 ; Draw Blue Token 3
 ; -----------------------------------------
 draw_blue_token_3:
+    mov byte [active_token_dots], 3
     mov al, [blue_token_3_progress]
     cmp al, 255
     je .home
@@ -1744,7 +1786,8 @@ draw_blue_token_3:
     mov bx, BOARD_X + 126
     mov dx, BOARD_Y + 150
     mov al, 1
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1752,6 +1795,7 @@ draw_blue_token_3:
 ; Draw Blue Token 4
 ; -----------------------------------------
 draw_blue_token_4:
+    mov byte [active_token_dots], 4
     mov al, [blue_token_4_progress]
     cmp al, 255
     je .home
@@ -1763,7 +1807,8 @@ draw_blue_token_4:
     mov bx, BOARD_X + 150
     mov dx, BOARD_Y + 150
     mov al, 1
-    call draw_token
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
     ret
 
 
@@ -1857,7 +1902,79 @@ draw_all_tokens:
 
     ret
 
-    
+; -----------------------------------------
+; draw_token_with_dots
+; input:
+; BX = token pixel X
+; DX = token pixel Y
+; AL = token color
+; CL = number of white dots: 1, 2, 3, or 4
+; -----------------------------------------
+draw_token_with_dots:
+    mov [dot_base_x], bx
+    mov [dot_base_y], dx
+    mov [dot_count], cl
+
+    ; Draw normal colored token first
+    call draw_token
+
+    ; If dot count is 0, draw no dots
+    cmp byte [dot_count], 0
+    je .done
+
+    ; Dot 1 - top left
+    mov bx, [dot_base_x]
+    add bx, 2
+    mov dx, [dot_base_y]
+    add dx, 2
+    mov si, 2
+    mov bp, 2
+    mov al, 15
+    call draw_rect
+
+    cmp byte [dot_count], 1
+    je .done
+
+    ; Dot 2 - top right
+    mov bx, [dot_base_x]
+    add bx, 6
+    mov dx, [dot_base_y]
+    add dx, 2
+    mov si, 2
+    mov bp, 2
+    mov al, 15
+    call draw_rect
+
+    cmp byte [dot_count], 2
+    je .done
+
+    ; Dot 3 - bottom left
+    mov bx, [dot_base_x]
+    add bx, 2
+    mov dx, [dot_base_y]
+    add dx, 6
+    mov si, 2
+    mov bp, 2
+    mov al, 15
+    call draw_rect
+
+    cmp byte [dot_count], 3
+    je .done
+
+    ; Dot 4 - bottom right
+    mov bx, [dot_base_x]
+    add bx, 6
+    mov dx, [dot_base_y]
+    add dx, 6
+    mov si, 2
+    mov bp, 2
+    mov al, 15
+    call draw_rect
+
+.done:
+    ret    
+
+
 ; -----------------------------------------
 ; Draw one token
 ; BX = x
@@ -1897,48 +2014,38 @@ draw_token:
 ; -----------------------------------------
 ; draw_token_on_cell
 ; input:
-; BL = grid x
-; BH = grid y
+; BL = board cell X
+; BH = board cell Y
 ; AL = token color
-; Draws token centered inside a board cell
+;
+; Uses active_token_dots to draw token marker dots
 ; -----------------------------------------
 draw_token_on_cell:
-    push ax
-    push bx
-    push cx
-    push dx
+    mov [cell_token_color], al
+    mov [cell_token_x], bl
+    mov [cell_token_y], bh
 
-    mov [token_color], al
-    mov [grid_x], bl
-    mov [grid_y], bh
-
-    ; pixel x = BOARD_X + grid_x * CELL_SIZE + 2
+    ; Convert cell X to pixel X
     xor ax, ax
-    mov al, [grid_x]
+    mov al, [cell_token_x]
     mov cl, CELL_SIZE
     mul cl
-    add ax, BOARD_X
-    add ax, 2
+    add ax, BOARD_X + 2
     mov bx, ax
 
-    ; pixel y = BOARD_Y + grid_y * CELL_SIZE + 2
+    ; Convert cell Y to pixel Y
     xor ax, ax
-    mov al, [grid_y]
+    mov al, [cell_token_y]
     mov cl, CELL_SIZE
     mul cl
-    add ax, BOARD_Y
-    add ax, 2
+    add ax, BOARD_Y + 2
     mov dx, ax
 
-    mov al, [token_color]
-    call draw_token
+    mov al, [cell_token_color]
+    mov cl, [active_token_dots]
+    call draw_token_with_dots
 
-    pop dx
-    pop cx
-    pop bx
-    pop ax
     ret
-
 
 ; -----------------------------------------
 ; draw_cell
