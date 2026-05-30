@@ -941,6 +941,135 @@ draw_current_player_indicator:
     ret
 
 ; -----------------------------------------
+; reset_token_stack
+; Clears token stack tracking for the new frame
+; -----------------------------------------
+reset_token_stack:
+    mov byte [token_stack_count], 0
+    ret
+
+
+; -----------------------------------------
+; register_token_cell
+; input:
+; BL = board cell X
+; BH = board cell Y
+;
+; This counts how many tokens are on each cell.
+; -----------------------------------------
+register_token_cell:
+    mov [stack_cell_x], bl
+    mov [stack_cell_y], bh
+
+    xor cx, cx
+    mov cl, [token_stack_count]
+    xor si, si
+
+.search_loop:
+    cmp si, cx
+    jae .new_cell
+
+    mov al, [token_stack_x + si]
+    cmp al, [stack_cell_x]
+    jne .next_entry
+
+    mov al, [token_stack_y + si]
+    cmp al, [stack_cell_y]
+    jne .next_entry
+
+    ; Same cell found, increase total count
+    inc byte [token_stack_slots + si]
+    ret
+
+.next_entry:
+    inc si
+    jmp .search_loop
+
+.new_cell:
+    mov al, [token_stack_count]
+    cmp al, 64
+    jae .done
+
+    xor ah, ah
+    mov si, ax
+
+    mov al, [stack_cell_x]
+    mov [token_stack_x + si], al
+
+    mov al, [stack_cell_y]
+    mov [token_stack_y + si], al
+
+    ; total tokens on this cell = 1
+    mov byte [token_stack_slots + si], 1
+
+    ; drawn tokens on this cell = 0
+    mov byte [token_stack_drawn + si], 0
+
+    inc byte [token_stack_count]
+
+.done:
+    ret
+
+
+; -----------------------------------------
+; find_stack_info_for_cell
+; input:
+; BL = board cell X
+; BH = board cell Y
+;
+; output:
+; AL = total tokens on this cell
+; CL = drawing slot for this token
+; -----------------------------------------
+find_stack_info_for_cell:
+    mov [stack_cell_x], bl
+    mov [stack_cell_y], bh
+
+    xor cx, cx
+    mov cl, [token_stack_count]
+    xor si, si
+
+.search_loop:
+    cmp si, cx
+    jae .fallback
+
+    mov al, [token_stack_x + si]
+    cmp al, [stack_cell_x]
+    jne .next_entry
+
+    mov al, [token_stack_y + si]
+    cmp al, [stack_cell_y]
+    jne .next_entry
+
+    ; Found cell
+    mov al, [token_stack_slots + si]
+    mov [stack_total], al
+
+    mov cl, [token_stack_drawn + si]
+
+    ; Max visible slots = 4
+    cmp cl, 4
+    jb .slot_ok
+
+    mov cl, 3
+
+.slot_ok:
+    inc byte [token_stack_drawn + si]
+
+    mov al, [stack_total]
+    ret
+
+.next_entry:
+    inc si
+    jmp .search_loop
+
+.fallback:
+    mov al, 1
+    mov cl, 0
+    ret
+
+
+; -----------------------------------------
 ; Draw complete screen
 ; -----------------------------------------
 draw_full_screen:
@@ -949,6 +1078,8 @@ draw_full_screen:
     call draw_main_path
     call draw_home_lanes
     call draw_center_box
+    call reset_token_stack
+    call prepare_token_stacks
     call draw_all_tokens
     call draw_dice
     call draw_current_player_indicator
@@ -1585,6 +1716,8 @@ draw_green_token_on_path:
     call draw_token_on_cell
     ret
 
+
+
 ; -----------------------------------------
 ; Draw Yellow Token 1
 ; -----------------------------------------
@@ -1869,6 +2002,260 @@ draw_blue_token_on_path:
     call draw_token_on_cell
     ret
 
+; -----------------------------------------
+; prepare_token_stacks
+; Counts all non-home token positions before drawing.
+; -----------------------------------------
+prepare_token_stacks:
+    ; Red tokens
+    mov al, [red_token_1_progress]
+    call register_red_token_cell
+
+    mov al, [red_token_2_progress]
+    call register_red_token_cell
+
+    mov al, [red_token_3_progress]
+    call register_red_token_cell
+
+    mov al, [red_token_4_progress]
+    call register_red_token_cell
+
+    ; Green tokens
+    mov al, [green_token_1_progress]
+    call register_green_token_cell
+
+    mov al, [green_token_2_progress]
+    call register_green_token_cell
+
+    mov al, [green_token_3_progress]
+    call register_green_token_cell
+
+    mov al, [green_token_4_progress]
+    call register_green_token_cell
+
+    ; Blue tokens
+    mov al, [blue_token_1_progress]
+    call register_blue_token_cell
+
+    mov al, [blue_token_2_progress]
+    call register_blue_token_cell
+
+    mov al, [blue_token_3_progress]
+    call register_blue_token_cell
+
+    mov al, [blue_token_4_progress]
+    call register_blue_token_cell
+
+    ; Yellow tokens
+    mov al, [yellow_token_1_progress]
+    call register_yellow_token_cell
+
+    mov al, [yellow_token_2_progress]
+    call register_yellow_token_cell
+
+    mov al, [yellow_token_3_progress]
+    call register_yellow_token_cell
+
+    mov al, [yellow_token_4_progress]
+    call register_yellow_token_cell
+
+    ret
+
+; -----------------------------------------
+; Register Red token cell
+; input:
+; AL = token progress
+; -----------------------------------------
+register_red_token_cell:
+    cmp al, 255
+    je .done
+
+    cmp al, 51
+    jb .main_path
+
+    cmp al, 56
+    je .finished
+
+    sub al, 51
+    xor ah, ah
+    mov si, ax
+
+    mov bl, [red_lane_x + si]
+    mov bh, [red_lane_y + si]
+    call register_token_cell
+    ret
+
+.main_path:
+    add al, RED_START_INDEX
+
+    cmp al, 52
+    jb .index_ready
+    sub al, 52
+
+.index_ready:
+    xor ah, ah
+    mov si, ax
+
+    mov bl, [path_x + si]
+    mov bh, [path_y + si]
+    call register_token_cell
+    ret
+
+.finished:
+    mov bl, 6
+    mov bh, 7
+    call register_token_cell
+
+.done:
+    ret
+
+
+; -----------------------------------------
+; Register Green token cell
+; input:
+; AL = token progress
+; -----------------------------------------
+register_green_token_cell:
+    cmp al, 255
+    je .done
+
+    cmp al, 51
+    jb .main_path
+
+    cmp al, 56
+    je .finished
+
+    sub al, 51
+    xor ah, ah
+    mov si, ax
+
+    mov bl, [green_lane_x + si]
+    mov bh, [green_lane_y + si]
+    call register_token_cell
+    ret
+
+.main_path:
+    add al, GREEN_START_INDEX
+
+    cmp al, 52
+    jb .index_ready
+    sub al, 52
+
+.index_ready:
+    xor ah, ah
+    mov si, ax
+
+    mov bl, [path_x + si]
+    mov bh, [path_y + si]
+    call register_token_cell
+    ret
+
+.finished:
+    mov bl, 7
+    mov bh, 6
+    call register_token_cell
+
+.done:
+    ret
+
+
+; -----------------------------------------
+; Register Blue token cell
+; input:
+; AL = token progress
+; -----------------------------------------
+register_blue_token_cell:
+    cmp al, 255
+    je .done
+
+    cmp al, 51
+    jb .main_path
+
+    cmp al, 56
+    je .finished
+
+    sub al, 51
+    xor ah, ah
+    mov si, ax
+
+    mov bl, [blue_lane_x + si]
+    mov bh, [blue_lane_y + si]
+    call register_token_cell
+    ret
+
+.main_path:
+    add al, BLUE_START_INDEX
+
+    cmp al, 52
+    jb .index_ready
+    sub al, 52
+
+.index_ready:
+    xor ah, ah
+    mov si, ax
+
+    mov bl, [path_x + si]
+    mov bh, [path_y + si]
+    call register_token_cell
+    ret
+
+.finished:
+    mov bl, 8
+    mov bh, 7
+    call register_token_cell
+
+.done:
+    ret
+
+
+; -----------------------------------------
+; Register Yellow token cell
+; input:
+; AL = token progress
+; -----------------------------------------
+register_yellow_token_cell:
+    cmp al, 255
+    je .done
+
+    cmp al, 51
+    jb .main_path
+
+    cmp al, 56
+    je .finished
+
+    sub al, 51
+    xor ah, ah
+    mov si, ax
+
+    mov bl, [yellow_lane_x + si]
+    mov bh, [yellow_lane_y + si]
+    call register_token_cell
+    ret
+
+.main_path:
+    add al, YELLOW_START_INDEX
+
+    cmp al, 52
+    jb .index_ready
+    sub al, 52
+
+.index_ready:
+    xor ah, ah
+    mov si, ax
+
+    mov bl, [path_x + si]
+    mov bh, [path_y + si]
+    call register_token_cell
+    ret
+
+.finished:
+    mov bl, 7
+    mov bh, 8
+    call register_token_cell
+
+.done:
+    ret
+
 
 ; -----------------------------------------
 ; Draw all 16 tokens
@@ -1976,6 +2363,79 @@ draw_token_with_dots:
 
 
 ; -----------------------------------------
+; draw_small_token_with_dots
+; input:
+; BX = token pixel X
+; DX = token pixel Y
+; AL = token color
+; CL = number of white dots
+; -----------------------------------------
+draw_small_token_with_dots:
+    mov [dot_base_x], bx
+    mov [dot_base_y], dx
+    mov [dot_count], cl
+
+    ; Draw small colored token body: 5x5
+    mov si, 5
+    mov bp, 5
+    call draw_rect
+
+    cmp byte [dot_count], 0
+    je .done
+
+    ; Dot 1
+    mov bx, [dot_base_x]
+    add bx, 1
+    mov dx, [dot_base_y]
+    add dx, 1
+    mov si, 1
+    mov bp, 1
+    mov al, 15
+    call draw_rect
+
+    cmp byte [dot_count], 1
+    je .done
+
+    ; Dot 2
+    mov bx, [dot_base_x]
+    add bx, 3
+    mov dx, [dot_base_y]
+    add dx, 1
+    mov si, 1
+    mov bp, 1
+    mov al, 15
+    call draw_rect
+
+    cmp byte [dot_count], 2
+    je .done
+
+    ; Dot 3
+    mov bx, [dot_base_x]
+    add bx, 1
+    mov dx, [dot_base_y]
+    add dx, 3
+    mov si, 1
+    mov bp, 1
+    mov al, 15
+    call draw_rect
+
+    cmp byte [dot_count], 3
+    je .done
+
+    ; Dot 4
+    mov bx, [dot_base_x]
+    add bx, 3
+    mov dx, [dot_base_y]
+    add dx, 3
+    mov si, 1
+    mov bp, 1
+    mov al, 15
+    call draw_rect
+
+.done:
+    ret
+
+; -----------------------------------------
 ; Draw one token
 ; BX = x
 ; DX = y
@@ -2018,14 +2478,40 @@ draw_token:
 ; BH = board cell Y
 ; AL = token color
 ;
-; Uses active_token_dots to draw token marker dots
+; If only one token is on the cell:
+;     draw normal token
+;
+; If multiple tokens are on the cell:
+;     draw small stacked token
 ; -----------------------------------------
 draw_token_on_cell:
     mov [cell_token_color], al
     mov [cell_token_x], bl
     mov [cell_token_y], bh
 
-    ; Convert cell X to pixel X
+    mov al, [active_token_dots]
+    mov [stack_token_dots], al
+
+    ; Check how many tokens are on this cell
+    mov bl, [cell_token_x]
+    mov bh, [cell_token_y]
+    call find_stack_info_for_cell
+
+    ; AL = total tokens on cell
+    ; CL = slot number
+    mov [stack_total], al
+    mov [stack_slot], cl
+
+    ; If only one token is here, draw normal-size token
+    cmp byte [stack_total], 1
+    je .draw_normal
+
+    ; Otherwise draw small stacked token
+    jmp .draw_stacked
+
+
+.draw_normal:
+    ; Convert cell X to normal centered token pixel X
     xor ax, ax
     mov al, [cell_token_x]
     mov cl, CELL_SIZE
@@ -2033,7 +2519,7 @@ draw_token_on_cell:
     add ax, BOARD_X + 2
     mov bx, ax
 
-    ; Convert cell Y to pixel Y
+    ; Convert cell Y to normal centered token pixel Y
     xor ax, ax
     mov al, [cell_token_y]
     mov cl, CELL_SIZE
@@ -2042,10 +2528,70 @@ draw_token_on_cell:
     mov dx, ax
 
     mov al, [cell_token_color]
-    mov cl, [active_token_dots]
+    mov cl, [stack_token_dots]
     call draw_token_with_dots
-
     ret
+
+
+.draw_stacked:
+    ; Convert cell X to pixel X
+    xor ax, ax
+    mov al, [cell_token_x]
+    mov cl, CELL_SIZE
+    mul cl
+    add ax, BOARD_X
+    mov bx, ax
+
+    ; Convert cell Y to pixel Y
+    xor ax, ax
+    mov al, [cell_token_y]
+    mov cl, CELL_SIZE
+    mul cl
+    add ax, BOARD_Y
+    mov dx, ax
+
+    ; Apply stack slot offset inside 12x12 cell
+    mov al, [stack_slot]
+
+    cmp al, 0
+    je .slot_top_left
+
+    cmp al, 1
+    je .slot_top_right
+
+    cmp al, 2
+    je .slot_bottom_left
+
+    ; Slot 3 = bottom-right
+    add bx, 6
+    add dx, 6
+    jmp .draw_small
+
+
+.slot_top_left:
+    add bx, 1
+    add dx, 1
+    jmp .draw_small
+
+
+.slot_top_right:
+    add bx, 6
+    add dx, 1
+    jmp .draw_small
+
+
+.slot_bottom_left:
+    add bx, 1
+    add dx, 6
+
+
+.draw_small:
+    mov al, [cell_token_color]
+    mov cl, [stack_token_dots]
+    call draw_small_token_with_dots
+    ret
+
+
 
 ; -----------------------------------------
 ; draw_cell
@@ -2232,6 +2778,20 @@ blue_token_4_progress db 255
 
 current_player db 0
 last_dice db 0
+
+token_stack_count db 0
+token_stack_x times 64 db 0
+token_stack_y times 64 db 0
+token_stack_slots times 64 db 0
+
+stack_cell_x db 0
+stack_cell_y db 0
+stack_token_color db 0
+stack_token_dots db 0
+stack_slot db 0
+
+token_stack_drawn times 64 db 0
+stack_total db 0
 
 dice_available db 0
 game_over db 0
