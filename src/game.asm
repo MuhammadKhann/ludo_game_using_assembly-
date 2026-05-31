@@ -1813,7 +1813,7 @@ find_stack_info_for_cell:
 
 ; -----------------------------------------
 ; draw_start_screen
-; Clean simple menu screen before game starts
+; Start/menu screen with centered text blocks
 ; -----------------------------------------
 draw_start_screen:
     ; Black background
@@ -1825,69 +1825,130 @@ draw_start_screen:
     call draw_rect
 
     ; White main panel
-    mov bx, 55
-    mov dx, 35
-    mov si, 210
-    mov bp, 130
+    mov bx, 35
+    mov dx, 15
+    mov si, 250
+    mov bp, 170
     mov al, 15
     call draw_rect
 
-    ; Black title bar
-    mov bx, 75
-    mov dx, 50
-    mov si, 170
-    mov bp, 28
+    ; -------------------------
+    ; Title bar
+    ; -------------------------
+    mov bx, 43
+    mov dx, 28
+    mov si, 234
+    mov bp, 20
     mov al, 0
     call draw_rect
 
-    ; Title text
-    mov dh, 7
-    mov dl, 16
+    mov dh, 4
+    mov dl, 15
     mov bl, 15
     mov si, menu_title
     call print_text_at
 
-    ; Four color blocks
+    ; -------------------------
+    ; Project bar
+    ; -------------------------
+    mov bx, 43
+    mov dx, 58
+    mov si, 234
+    mov bp, 18
+    mov al, 0
+    call draw_rect
+
+    mov dh, 8
+    mov dl, 14
+    mov bl, 15
+    mov si, menu_project
+    call print_text_at
+
+    ; -------------------------
+    ; Members joined box
+    ; -------------------------
+    mov bx, 43
+    mov dx, 86
+    mov si, 234
+    mov bp, 44
+    mov al, 0
+    call draw_rect
+
+    ; MEMBERS centered with padding from top
+    mov dh, 12
+    mov dl, 16
+    mov bl, 15
+    mov si, menu_members
+    call print_text_at
+
+    ; Names centered on next line
+    mov dh, 14
+    mov dl, 6
+    mov bl, 15
+    mov si, menu_member_names
+    call print_text_at
+
+    ; -------------------------
+    ; Instructor bar
+    ; -------------------------
+    mov bx, 43
+    mov dx, 138
+    mov si, 234
+    mov bp, 18
+    mov al, 0
+    call draw_rect
+
+    mov dh, 18
+    mov dl, 7
+    mov bl, 15
+    mov si, menu_instructor
+    call print_text_at
+    
+    ; -------------------------
+    ; Color blocks
+    ; -------------------------
     mov bx, 82
-    mov dx, 95
+    mov dx, 160
     mov si, 32
-    mov bp, 22
+    mov bp, 9
     mov al, 4
     call draw_rect
 
     mov bx, 122
-    mov dx, 95
+    mov dx, 160
     mov si, 32
-    mov bp, 22
+    mov bp, 9
     mov al, 2
     call draw_rect
 
     mov bx, 162
-    mov dx, 95
+    mov dx, 160
     mov si, 32
-    mov bp, 22
+    mov bp, 9
     mov al, 1
     call draw_rect
 
     mov bx, 202
-    mov dx, 95
+    mov dx, 160
     mov si, 32
-    mov bp, 22
+    mov bp, 9
     mov al, 14
     call draw_rect
 
-    ; Start instruction
-    mov dh, 17
+    ; -------------------------
+    ; Start instruction box
+    ; -------------------------
+    mov bx, 68
+    mov dx, 172
+    mov si, 184
+    mov bp, 12
+    mov al, 0
+    call draw_rect
+
+    mov dh, 22
     mov dl, 10
     mov bl, 4
     mov si, menu_start
-    call print_text_at
-
-    ; Exit instruction
-    mov dh, 20
-    mov dl, 15
-    mov bl, 0
-    mov si, menu_exit
     call print_text_at
 
     ret
@@ -3795,6 +3856,9 @@ safe_index db 0
 capture_happened db 0
 token_dot_color db 15
 
-menu_title db "LUDO GAME", 0
-menu_start db "PRESS ENTER TO START", 0
-menu_exit  db "ESC TO EXIT", 0
+menu_title        db "LUDO GAME", 0
+menu_project      db "COAL PROJECT", 0
+menu_members      db "MEMBERS:", 0
+menu_member_names db "MUHAMMAD, SHAHMEER, ABDULLAH", 0
+menu_instructor   db "INSTRUCTOR: MA'AM MAMOONA", 0
+menu_start        db "PRESS ENTER TO START", 0
