@@ -72,10 +72,6 @@ main_loop:
     cmp al, 27
     je stop_game
 
-    ; ESC = stop
-    cmp al, 27
-    je stop_game
-
     jmp main_loop
 
 game_over_loop:
@@ -249,114 +245,6 @@ select_token_4:
     call move_red_token_by_si
     jmp main_loop
 
-; -----------------------------------------
-; Red token movement wrappers
-; -----------------------------------------
-move_red_token_1:
-    mov si, red_token_1_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-move_red_token_2:
-    mov si, red_token_2_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-move_red_token_3:
-    mov si, red_token_3_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-move_red_token_4:
-    mov si, red_token_4_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-
-; -----------------------------------------
-; Green token movement wrappers
-; Temporary controls:
-; 5 = Green Token 1
-; 6 = Green Token 2
-; 7 = Green Token 3
-; 8 = Green Token 4
-; -----------------------------------------
-move_green_token_1:
-    mov si, green_token_1_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-move_green_token_2:
-    mov si, green_token_2_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-move_green_token_3:
-    mov si, green_token_3_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-move_green_token_4:
-    mov si, green_token_4_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-; -----------------------------------------
-; Yellow token movement wrappers
-; Temporary controls:
-; Q = Yellow Token 1
-; W = Yellow Token 2
-; E = Yellow Token 3
-; R = Yellow Token 4
-; -----------------------------------------
-move_yellow_token_1:
-    mov si, yellow_token_1_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-move_yellow_token_2:
-    mov si, yellow_token_2_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-move_yellow_token_3:
-    mov si, yellow_token_3_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-move_yellow_token_4:
-    mov si, yellow_token_4_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-
-; -----------------------------------------
-; Blue token movement wrappers
-; Temporary controls:
-; A = Blue Token 1
-; S = Blue Token 2
-; F = Blue Token 3
-; G = Blue Token 4
-; -----------------------------------------
-move_blue_token_1:
-    mov si, blue_token_1_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-move_blue_token_2:
-    mov si, blue_token_2_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-move_blue_token_3:
-    mov si, blue_token_3_progress
-    call move_red_token_by_si
-    jmp main_loop
-
-move_blue_token_4:
-    mov si, blue_token_4_progress
-    call move_red_token_by_si
-    jmp main_loop
 
 ; -----------------------------------------
 ; move_red_token_by_si
@@ -462,13 +350,6 @@ move_red_token_by_si:
     call draw_final_result_screen
     ret
 
-
-.all_players_finished:
-    mov byte [game_over], 1
-    call draw_full_screen
-    ret
-
-
 .invalid_move:
     ; Invalid token selection does not consume dice
     ret
@@ -551,10 +432,10 @@ check_one_red_token_valid:
 .already_out:
     ; Finished token cannot move
     mov al, [si]
-    cmp al, 57
+    cmp al, 56
     je .invalid
 
-    ; Check progress + dice <= 57
+    ; Check progress + dice <= 56
     mov al, [si]
     add al, [dice_value]
     cmp al, 56
@@ -600,71 +481,6 @@ check_red_winner:
 
 
 ; -----------------------------------------
-; draw_red_win_screen
-; Simple graphics victory screen for Red
-; -----------------------------------------
-draw_red_win_screen:
-    ; Fill screen with red
-    xor di, di
-    mov al, 4
-    mov cx, 64000
-    rep stosb
-
-    ; White center panel
-    mov bx, 90
-    mov dx, 60
-    mov si, 140
-    mov bp, 80
-    mov al, 15
-    call draw_rect
-
-    ; Red tokens inside panel
-    mov bx, 125
-    mov dx, 85
-    mov al, 4
-    call draw_token
-
-    mov bx, 155
-    mov dx, 85
-    mov al, 4
-    call draw_token
-
-    mov bx, 125
-    mov dx, 110
-    mov al, 4
-    call draw_token
-
-    mov bx, 155
-    mov dx, 110
-    mov al, 4
-    call draw_token
-
-    ret
-
-
-; -----------------------------------------
-; red_or_green_has_valid_move
-; output:
-; AL = 1 if Red or Green has at least one valid move
-; AL = 0 if neither can move
-; -----------------------------------------
-red_or_green_has_valid_move:
-    call red_has_valid_move
-    cmp al, 1
-    je .yes
-
-    call green_has_valid_move
-    cmp al, 1
-    je .yes
-
-    mov al, 0
-    ret
-
-.yes:
-    mov al, 1
-    ret
-
-; -----------------------------------------
 ; green_has_valid_move
 ; output:
 ; AL = 1 if at least one Green token can move
@@ -699,33 +515,6 @@ green_has_valid_move:
     ret
 
 ; -----------------------------------------
-; red_green_yellow_has_valid_move
-; output:
-; AL = 1 if any Red/Green/Yellow token can move
-; AL = 0 if none can move
-; -----------------------------------------
-red_green_yellow_has_valid_move:
-    call red_has_valid_move
-    cmp al, 1
-    je .yes
-
-    call green_has_valid_move
-    cmp al, 1
-    je .yes
-
-    call yellow_has_valid_move
-    cmp al, 1
-    je .yes
-
-    mov al, 0
-    ret
-
-.yes:
-    mov al, 1
-    ret
-
-
-; -----------------------------------------
 ; yellow_has_valid_move
 ; output:
 ; AL = 1 if at least one Yellow token can move
@@ -758,38 +547,6 @@ yellow_has_valid_move:
 .yes:
     mov al, 1
     ret
-
-
-; -----------------------------------------
-; any_player_has_valid_move
-; output:
-; AL = 1 if any token from any color can move
-; AL = 0 if no token can move
-; -----------------------------------------
-any_player_has_valid_move:
-    call red_has_valid_move
-    cmp al, 1
-    je .yes
-
-    call green_has_valid_move
-    cmp al, 1
-    je .yes
-
-    call yellow_has_valid_move
-    cmp al, 1
-    je .yes
-
-    call blue_has_valid_move
-    cmp al, 1
-    je .yes
-
-    mov al, 0
-    ret
-
-.yes:
-    mov al, 1
-    ret
-
 
 ; -----------------------------------------
 ; blue_has_valid_move
@@ -1029,93 +786,6 @@ check_yellow_winner:
 .no:
     mov al, 0
     ret
-
-; -----------------------------------------
-; draw_current_player_win_screen
-; Shows winner screen based on current_player
-; -----------------------------------------
-draw_current_player_win_screen:
-    mov al, [current_player]
-
-    cmp al, 0
-    je .red
-
-    cmp al, 1
-    je .green
-
-    cmp al, 2
-    je .blue
-
-    cmp al, 3
-    je .yellow
-
-.red:
-    mov byte [win_color], 4
-    jmp .draw
-
-.green:
-    mov byte [win_color], 2
-    jmp .draw
-
-.blue:
-    mov byte [win_color], 1
-    jmp .draw
-
-.yellow:
-    mov byte [win_color], 14
-
-
-.draw:
-    ; Full screen winner color
-    mov bx, 0
-    mov dx, 0
-    mov si, 320
-    mov bp, 200
-    mov al, [win_color]
-    call draw_rect
-
-    ; White center panel
-    mov bx, 70
-    mov dx, 50
-    mov si, 180
-    mov bp, 100
-    mov al, 15
-    call draw_rect
-
-    ; Winner color block inside panel
-    mov bx, 105
-    mov dx, 75
-    mov si, 110
-    mov bp, 50
-    mov al, [win_color]
-    call draw_rect
-
-    ; Four winner tokens
-    mov bx, 120
-    mov dx, 88
-    mov al, [win_color]
-    mov cl, 1
-    call draw_token_with_dots
-
-    mov bx, 145
-    mov dx, 88
-    mov al, [win_color]
-    mov cl, 2
-    call draw_token_with_dots
-
-    mov bx, 170
-    mov dx, 88
-    mov al, [win_color]
-    mov cl, 3
-    call draw_token_with_dots
-
-    mov bx, 195
-    mov dx, 88
-    mov al, [win_color]
-    mov cl, 4
-    call draw_token_with_dots
-
-    ret    
 
 ; -----------------------------------------
 ; current_player_is_finished
@@ -3958,8 +3628,6 @@ yellow_finished db 0
 
 finished_player_count db 0
 next_player_checks db 0
-
-win_color db 0
 
 first_place db 255
 second_place db 255
