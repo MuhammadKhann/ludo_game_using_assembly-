@@ -410,6 +410,8 @@ move_red_token_by_si:
 
 
 .successful_move:
+
+    call handle_capture_for_current_move
     ; Save dice before clearing it
     mov al, [dice_value]
     mov [last_dice], al
@@ -424,14 +426,17 @@ move_red_token_by_si:
 
 
 .turn_logic:
-    ; Dice 6 gives same player another turn
+    ; Capture gives one extra turn
+    cmp byte [capture_happened], 1
+    je .same_player_turn
+
+    ; Dice 6 also gives one extra turn
     mov al, [last_dice]
     cmp al, 6
     je .same_player_turn
 
-    ; Dice was not 6, pass turn
+    ; No capture and dice was not 6, pass turn
     call next_player
-
 
 .same_player_turn:
     call draw_full_screen
@@ -1607,6 +1612,317 @@ draw_final_result_screen:
 
     ret
 
+; -----------------------------------------
+; compute_current_capture_path_index
+; input:
+; AL = current player's token progress
+;
+; output:
+; capture_path_index = absolute main path index
+;
+; current_player:
+; 0 = Red
+; 1 = Green
+; 2 = Blue
+; 3 = Yellow
+; -----------------------------------------
+compute_current_capture_path_index:
+    mov bl, al
+
+    mov al, [current_player]
+
+    cmp al, 0
+    je .red
+
+    cmp al, 1
+    je .green
+
+    cmp al, 2
+    je .blue
+
+    cmp al, 3
+    je .yellow
+
+
+.red:
+    mov al, bl
+    add al, RED_START_INDEX
+    jmp .wrap
+
+
+.green:
+    mov al, bl
+    add al, GREEN_START_INDEX
+    jmp .wrap
+
+
+.blue:
+    mov al, bl
+    add al, BLUE_START_INDEX
+    jmp .wrap
+
+
+.yellow:
+    mov al, bl
+    add al, YELLOW_START_INDEX
+
+
+.wrap:
+    cmp al, 52
+    jb .save
+
+    sub al, 52
+
+
+.save:
+    mov [capture_path_index], al
+    ret
+
+
+; -----------------------------------------
+; capture_path_is_safe
+; output:
+; AL = 1 if capture cell is safe
+; AL = 0 if capture cell is not safe
+;
+; 8 safe cells:
+; 0, 8, 13, 21, 26, 34, 39, 47
+; -----------------------------------------
+capture_path_is_safe:
+    mov al, [capture_path_index]
+
+    ; Yellow safe cells
+    cmp al, YELLOW_START_INDEX
+    je .safe
+
+    cmp al, YELLOW_SAFE_2
+    je .safe
+
+    ; Red safe cells
+    cmp al, RED_START_INDEX
+    je .safe
+
+    cmp al, RED_SAFE_2
+    je .safe
+
+    ; Green safe cells
+    cmp al, GREEN_START_INDEX
+    je .safe
+
+    cmp al, GREEN_SAFE_2
+    je .safe
+
+    ; Blue safe cells
+    cmp al, BLUE_START_INDEX
+    je .safe
+
+    cmp al, BLUE_SAFE_2
+    je .safe
+
+    mov al, 0
+    ret
+
+
+.safe:
+    mov al, 1
+    ret
+
+; -----------------------------------------
+; capture_target_token
+; input:
+; SI = opponent token progress variable
+; BL = opponent start index
+;
+; If opponent token is on the same non-safe path cell,
+; send it back home.
+; -----------------------------------------
+capture_target_token:
+    mov al, [si]
+
+    ; Only main path tokens can be captured
+    ; 0-50 = main path
+    ; 51+  = home lane, finished, or home 255
+    cmp al, 51
+    jae .done
+
+    ; Convert opponent progress to absolute path index
+    add al, bl
+
+    cmp al, 52
+    jb .index_ready
+
+    sub al, 52
+
+
+.index_ready:
+    cmp al, [capture_path_index]
+    jne .done
+
+    ; Capture opponent token
+    mov byte [si], 255
+    mov byte [capture_happened], 1
+
+
+.done:
+    ret
+
+; -----------------------------------------
+; Capture Red tokens
+; -----------------------------------------
+capture_red_tokens:
+    mov bl, RED_START_INDEX
+
+    mov si, red_token_1_progress
+    call capture_target_token
+
+    mov si, red_token_2_progress
+    call capture_target_token
+
+    mov si, red_token_3_progress
+    call capture_target_token
+
+    mov si, red_token_4_progress
+    call capture_target_token
+
+    ret
+
+
+; -----------------------------------------
+; Capture Green tokens
+; -----------------------------------------
+capture_green_tokens:
+    mov bl, GREEN_START_INDEX
+
+    mov si, green_token_1_progress
+    call capture_target_token
+
+    mov si, green_token_2_progress
+    call capture_target_token
+
+    mov si, green_token_3_progress
+    call capture_target_token
+
+    mov si, green_token_4_progress
+    call capture_target_token
+
+    ret
+
+
+; -----------------------------------------
+; Capture Blue tokens
+; -----------------------------------------
+capture_blue_tokens:
+    mov bl, BLUE_START_INDEX
+
+    mov si, blue_token_1_progress
+    call capture_target_token
+
+    mov si, blue_token_2_progress
+    call capture_target_token
+
+    mov si, blue_token_3_progress
+    call capture_target_token
+
+    mov si, blue_token_4_progress
+    call capture_target_token
+
+    ret
+
+
+; -----------------------------------------
+; Capture Yellow tokens
+; -----------------------------------------
+capture_yellow_tokens:
+    mov bl, YELLOW_START_INDEX
+
+    mov si, yellow_token_1_progress
+    call capture_target_token
+
+    mov si, yellow_token_2_progress
+    call capture_target_token
+
+    mov si, yellow_token_3_progress
+    call capture_target_token
+
+    mov si, yellow_token_4_progress
+    call capture_target_token
+
+    ret
+
+
+; -----------------------------------------
+; handle_capture_for_current_move
+; input:
+; SI = current moved token progress variable
+;
+; Captures opponent tokens if current token lands
+; on the same non-safe main path cell.
+; -----------------------------------------
+handle_capture_for_current_move:
+    
+    mov byte [capture_happened], 0
+    mov al, [si]
+
+    ; Capture only happens on main path
+    cmp al, 51
+    jae .done
+
+    ; Get current moved token's absolute path index
+    call compute_current_capture_path_index
+
+    ; No capture on safe cells
+    call capture_path_is_safe
+    cmp al, 1
+    je .done
+
+    ; Capture opponents only, not own color
+    mov al, [current_player]
+
+    cmp al, 0
+    je .current_red
+
+    cmp al, 1
+    je .current_green
+
+    cmp al, 2
+    je .current_blue
+
+    cmp al, 3
+    je .current_yellow
+
+
+.current_red:
+    call capture_green_tokens
+    call capture_blue_tokens
+    call capture_yellow_tokens
+    ret
+
+
+.current_green:
+    call capture_red_tokens
+    call capture_blue_tokens
+    call capture_yellow_tokens
+    ret
+
+
+.current_blue:
+    call capture_red_tokens
+    call capture_green_tokens
+    call capture_yellow_tokens
+    ret
+
+
+.current_yellow:
+    call capture_red_tokens
+    call capture_green_tokens
+    call capture_blue_tokens
+    ret
+
+
+.done:
+    ret
+
+
 stop_game:
     ; Return to text mode
     mov ax, 0x0003
@@ -1811,6 +2127,7 @@ draw_full_screen:
     call clear_screen
     call draw_board_base
     call draw_main_path
+    call draw_safe_cells
     call draw_home_lanes
     call draw_center_box
     call reset_token_stack
@@ -2991,6 +3308,83 @@ register_yellow_token_cell:
 .done:
     ret
 
+; -----------------------------------------
+; draw_safe_cells
+; Draws all 8 safe cells as colored cells.
+;
+; Color mapping is based on visual lane position:
+;
+; Yellow safe cells = 0, 47
+; Red safe cells    = 13, 8
+; Green safe cells  = 26, 21
+; Blue safe cells   = 39, 34
+; -----------------------------------------
+draw_safe_cells:
+    ; Yellow safe cells
+    mov al, YELLOW_START_INDEX      ; 0
+    mov cl, 14
+    call draw_safe_cell_by_path_index
+
+    mov al, BLUE_SAFE_2             ; 47
+    mov cl, 14
+    call draw_safe_cell_by_path_index
+
+
+    ; Red safe cells
+    mov al, RED_START_INDEX         ; 13
+    mov cl, 4
+    call draw_safe_cell_by_path_index
+
+    mov al, YELLOW_SAFE_2           ; 8
+    mov cl, 4
+    call draw_safe_cell_by_path_index
+
+
+    ; Green safe cells
+    mov al, GREEN_START_INDEX       ; 26
+    mov cl, 2
+    call draw_safe_cell_by_path_index
+
+    mov al, RED_SAFE_2              ; 21
+    mov cl, 2
+    call draw_safe_cell_by_path_index
+
+
+    ; Blue safe cells
+    mov al, BLUE_START_INDEX        ; 39
+    mov cl, 1
+    call draw_safe_cell_by_path_index
+
+    mov al, GREEN_SAFE_2            ; 34
+    mov cl, 1
+    call draw_safe_cell_by_path_index
+
+    ret
+
+    
+; -----------------------------------------
+; draw_safe_cell_by_path_index
+; input:
+; AL = main path index
+; CL = safe cell color
+;
+; Draws the safe cell as a colored board cell.
+; -----------------------------------------
+draw_safe_cell_by_path_index:
+    mov [safe_index], al
+    mov [safe_color], cl
+
+    xor ah, ah
+    mov si, ax
+
+    mov bl, [path_x + si]
+    mov bh, [path_y + si]
+
+    mov al, [safe_color]
+    call draw_cell
+
+    ret
+
 
 ; -----------------------------------------
 ; Draw all 16 tokens
@@ -3491,25 +3885,25 @@ token_color db 0
 dice_value db 0
 random_seed dw 1234
 
-red_token_1_progress db 56
-red_token_2_progress db 56
-red_token_3_progress db 56
-red_token_4_progress db 55
+red_token_1_progress db 0
+red_token_2_progress db 0
+red_token_3_progress db 0
+red_token_4_progress db 0
 
-green_token_1_progress db 56
-green_token_2_progress db 56
-green_token_3_progress db 56
-green_token_4_progress db 55
+green_token_1_progress db 0
+green_token_2_progress db 0
+green_token_3_progress db 0
+green_token_4_progress db 0
 
-yellow_token_1_progress db 56
-yellow_token_2_progress db 56
-yellow_token_3_progress db 56
-yellow_token_4_progress db 55
+yellow_token_1_progress db 0
+yellow_token_2_progress db 0
+yellow_token_3_progress db 0
+yellow_token_4_progress db 0
 
-blue_token_1_progress db 56
-blue_token_2_progress db 56
-blue_token_3_progress db 56
-blue_token_4_progress db 55
+blue_token_1_progress db 0
+blue_token_2_progress db 0
+blue_token_3_progress db 0
+blue_token_4_progress db 0
 
 current_player db 0
 last_dice db 0
@@ -3545,4 +3939,22 @@ first_place db 255
 second_place db 255
 third_place db 255
 fourth_place db 255
+
 result_color db 0
+
+capture_path_index db 0
+
+YELLOW_START_INDEX equ 0
+RED_START_INDEX equ 13
+GREEN_START_INDEX equ 26
+BLUE_START_INDEX equ 39
+
+YELLOW_SAFE_2 equ 8
+RED_SAFE_2 equ 21
+GREEN_SAFE_2 equ 34
+BLUE_SAFE_2 equ 47
+
+safe_color db 0
+safe_index db 0
+
+capture_happened db 0
