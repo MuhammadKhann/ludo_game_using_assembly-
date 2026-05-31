@@ -417,15 +417,10 @@ move_red_token_by_si:
     ; Consume dice after successful move
     call consume_dice
 
-    ; For now, only Red winner detection is implemented
-    ; Check Red winner only when current player is Red
-    mov al, [current_player]
-    cmp al, 0
-    jne .turn_logic
-
-    call check_red_winner
+    ; Check if current player has won
+    call check_current_player_winner
     cmp al, 1
-    je .red_won
+    je .player_won
 
 
 .turn_logic:
@@ -442,10 +437,30 @@ move_red_token_by_si:
     call draw_full_screen
     ret
 
+.player_won:
+    ; Current player has finished
+    call mark_current_player_finished
 
-.red_won:
+    ; If 3 players have finished, the remaining player is 4th
+    cmp byte [finished_player_count], 3
+    je .show_final_results
+
+    ; Otherwise continue with next unfinished player
+    call next_player
+    call draw_full_screen
+    ret
+
+
+.show_final_results:
+    call find_fourth_place
     mov byte [game_over], 1
-    call draw_red_win_screen
+    call draw_final_result_screen
+    ret
+
+
+.all_players_finished:
+    mov byte [game_over], 1
+    call draw_full_screen
     ret
 
 
@@ -811,23 +826,34 @@ blue_has_valid_move:
 ; Turn order:
 ; Red -> Green -> Blue -> Yellow -> Red
 ;
-; current_player:
-; 0 = Red
-; 1 = Green
-; 2 = Blue
-; 3 = Yellow
+; Skips players who have already finished.
 ; -----------------------------------------
 next_player:
+    mov byte [next_player_checks], 0
+
+.next_try:
     inc byte [current_player]
 
     cmp byte [current_player], 4
-    jb .done
+    jb .check_player
 
     mov byte [current_player], 0
 
+.check_player:
+    inc byte [next_player_checks]
+
+    call current_player_is_finished
+    cmp al, 0
+    je .done
+
+    cmp byte [next_player_checks], 4
+    jb .next_try
+
+    ; All players are finished
+    mov byte [game_over], 1
+
 .done:
     ret
-
 ; -----------------------------------------
 ; current_player_has_valid_move
 ; output:
@@ -871,6 +897,715 @@ current_player_has_valid_move:
     call yellow_has_valid_move
     ret
 
+; -----------------------------------------
+; check_current_player_winner
+; output:
+; AL = 1 if current player has won
+; AL = 0 if not
+;
+; current_player:
+; 0 = Red
+; 1 = Green
+; 2 = Blue
+; 3 = Yellow
+; -----------------------------------------
+check_current_player_winner:
+    mov al, [current_player]
+
+    cmp al, 0
+    je .red
+
+    cmp al, 1
+    je .green
+
+    cmp al, 2
+    je .blue
+
+    cmp al, 3
+    je .yellow
+
+.red:
+    call check_red_winner
+    ret
+
+.green:
+    call check_green_winner
+    ret
+
+.blue:
+    call check_blue_winner
+    ret
+
+.yellow:
+    call check_yellow_winner
+    ret
+
+
+
+; -----------------------------------------
+; Green winner check
+; -----------------------------------------
+check_green_winner:
+    mov al, [green_token_1_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, [green_token_2_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, [green_token_3_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, [green_token_4_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, 1
+    ret
+
+.no:
+    mov al, 0
+    ret
+
+
+; -----------------------------------------
+; Blue winner check
+; -----------------------------------------
+check_blue_winner:
+    mov al, [blue_token_1_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, [blue_token_2_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, [blue_token_3_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, [blue_token_4_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, 1
+    ret
+
+.no:
+    mov al, 0
+    ret
+
+
+; -----------------------------------------
+; Yellow winner check
+; -----------------------------------------
+check_yellow_winner:
+    mov al, [yellow_token_1_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, [yellow_token_2_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, [yellow_token_3_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, [yellow_token_4_progress]
+    cmp al, 56
+    jne .no
+
+    mov al, 1
+    ret
+
+.no:
+    mov al, 0
+    ret
+
+; -----------------------------------------
+; draw_current_player_win_screen
+; Shows winner screen based on current_player
+; -----------------------------------------
+draw_current_player_win_screen:
+    mov al, [current_player]
+
+    cmp al, 0
+    je .red
+
+    cmp al, 1
+    je .green
+
+    cmp al, 2
+    je .blue
+
+    cmp al, 3
+    je .yellow
+
+.red:
+    mov byte [win_color], 4
+    jmp .draw
+
+.green:
+    mov byte [win_color], 2
+    jmp .draw
+
+.blue:
+    mov byte [win_color], 1
+    jmp .draw
+
+.yellow:
+    mov byte [win_color], 14
+
+
+.draw:
+    ; Full screen winner color
+    mov bx, 0
+    mov dx, 0
+    mov si, 320
+    mov bp, 200
+    mov al, [win_color]
+    call draw_rect
+
+    ; White center panel
+    mov bx, 70
+    mov dx, 50
+    mov si, 180
+    mov bp, 100
+    mov al, 15
+    call draw_rect
+
+    ; Winner color block inside panel
+    mov bx, 105
+    mov dx, 75
+    mov si, 110
+    mov bp, 50
+    mov al, [win_color]
+    call draw_rect
+
+    ; Four winner tokens
+    mov bx, 120
+    mov dx, 88
+    mov al, [win_color]
+    mov cl, 1
+    call draw_token_with_dots
+
+    mov bx, 145
+    mov dx, 88
+    mov al, [win_color]
+    mov cl, 2
+    call draw_token_with_dots
+
+    mov bx, 170
+    mov dx, 88
+    mov al, [win_color]
+    mov cl, 3
+    call draw_token_with_dots
+
+    mov bx, 195
+    mov dx, 88
+    mov al, [win_color]
+    mov cl, 4
+    call draw_token_with_dots
+
+    ret    
+
+; -----------------------------------------
+; current_player_is_finished
+; output:
+; AL = 1 if current player has already finished
+; AL = 0 if current player is still playing
+; -----------------------------------------
+current_player_is_finished:
+    mov al, [current_player]
+
+    cmp al, 0
+    je .red
+
+    cmp al, 1
+    je .green
+
+    cmp al, 2
+    je .blue
+
+    cmp al, 3
+    je .yellow
+
+.red:
+    mov al, [red_finished]
+    ret
+
+.green:
+    mov al, [green_finished]
+    ret
+
+.blue:
+    mov al, [blue_finished]
+    ret
+
+.yellow:
+    mov al, [yellow_finished]
+    ret
+
+; -----------------------------------------
+; mark_current_player_finished
+; Marks current player as finished/winner.
+; Also stores finishing rank.
+;
+; current_player:
+; 0 = Red
+; 1 = Green
+; 2 = Blue
+; 3 = Yellow
+; -----------------------------------------
+mark_current_player_finished:
+    mov al, [current_player]
+
+    cmp al, 0
+    je .red
+
+    cmp al, 1
+    je .green
+
+    cmp al, 2
+    je .blue
+
+    cmp al, 3
+    je .yellow
+
+
+.red:
+    cmp byte [red_finished], 1
+    je .done
+
+    mov byte [red_finished], 1
+    jmp .store_rank
+
+
+.green:
+    cmp byte [green_finished], 1
+    je .done
+
+    mov byte [green_finished], 1
+    jmp .store_rank
+
+
+.blue:
+    cmp byte [blue_finished], 1
+    je .done
+
+    mov byte [blue_finished], 1
+    jmp .store_rank
+
+
+.yellow:
+    cmp byte [yellow_finished], 1
+    je .done
+
+    mov byte [yellow_finished], 1
+    jmp .store_rank
+
+
+.store_rank:
+    ; finished_player_count is still old value here
+    ; 0 means this player is 1st
+    ; 1 means this player is 2nd
+    ; 2 means this player is 3rd
+
+    mov al, [finished_player_count]
+
+    cmp al, 0
+    je .first
+
+    cmp al, 1
+    je .second
+
+    cmp al, 2
+    je .third
+
+    jmp .increase_count
+
+
+.first:
+    mov al, [current_player]
+    mov [first_place], al
+    jmp .increase_count
+
+
+.second:
+    mov al, [current_player]
+    mov [second_place], al
+    jmp .increase_count
+
+
+.third:
+    mov al, [current_player]
+    mov [third_place], al
+    jmp .increase_count
+
+
+.increase_count:
+    inc byte [finished_player_count]
+
+.done:
+    ret
+
+; -----------------------------------------
+; find_fourth_place
+; The player who has not finished after 3 players
+; becomes 4th place automatically.
+; -----------------------------------------
+find_fourth_place:
+    cmp byte [red_finished], 0
+    je .red
+
+    cmp byte [green_finished], 0
+    je .green
+
+    cmp byte [blue_finished], 0
+    je .blue
+
+    cmp byte [yellow_finished], 0
+    je .yellow
+
+    ret
+
+
+.red:
+    mov byte [fourth_place], 0
+    ret
+
+
+.green:
+    mov byte [fourth_place], 1
+    ret
+
+
+.blue:
+    mov byte [fourth_place], 2
+    ret
+
+
+.yellow:
+    mov byte [fourth_place], 3
+    ret
+
+; -----------------------------------------
+; get_player_color
+; input:
+; AL = player id
+;      0 = Red
+;      1 = Green
+;      2 = Blue
+;      3 = Yellow
+;
+; output:
+; AL = VGA color
+; -----------------------------------------
+get_player_color:
+    cmp al, 0
+    je .red
+
+    cmp al, 1
+    je .green
+
+    cmp al, 2
+    je .blue
+
+    cmp al, 3
+    je .yellow
+
+    mov al, 15
+    ret
+
+
+.red:
+    mov al, 4
+    ret
+
+
+.green:
+    mov al, 2
+    ret
+
+
+.blue:
+    mov al, 1
+    ret
+
+
+.yellow:
+    mov al, 14
+    ret
+
+
+; -----------------------------------------
+; draw_final_result_screen
+; Shows 1st, 2nd, 3rd, 4th place using rows.
+;
+; Row 1 = first_place
+; Row 2 = second_place
+; Row 3 = third_place
+; Row 4 = fourth_place
+; -----------------------------------------
+draw_final_result_screen:
+    ; Clear screen black
+    mov bx, 0
+    mov dx, 0
+    mov si, 320
+    mov bp, 200
+    mov al, 0
+    call draw_rect
+
+    ; White panel
+    mov bx, 45
+    mov dx, 20
+    mov si, 230
+    mov bp, 160
+    mov al, 15
+    call draw_rect
+
+    ; Black border/header area
+    mov bx, 55
+    mov dx, 28
+    mov si, 210
+    mov bp, 18
+    mov al, 0
+    call draw_rect
+
+    ; -------------------------
+    ; 1st place row
+    ; -------------------------
+    mov al, [first_place]
+    call get_player_color
+    mov [result_color], al
+
+    mov bx, 75
+    mov dx, 58
+    mov si, 170
+    mov bp, 22
+    mov al, [result_color]
+    call draw_rect
+
+    ; Rank marker: 1 black block
+    mov bx, 58
+    mov dx, 64
+    mov si, 5
+    mov bp, 5
+    mov al, 0
+    call draw_rect
+
+    ; Winner tokens
+    mov bx, 100
+    mov dx, 64
+    mov al, [result_color]
+    mov cl, 1
+    call draw_token_with_dots
+
+    mov bx, 125
+    mov dx, 64
+    mov al, [result_color]
+    mov cl, 2
+    call draw_token_with_dots
+
+    mov bx, 150
+    mov dx, 64
+    mov al, [result_color]
+    mov cl, 3
+    call draw_token_with_dots
+
+    mov bx, 175
+    mov dx, 64
+    mov al, [result_color]
+    mov cl, 4
+    call draw_token_with_dots
+
+
+    ; -------------------------
+    ; 2nd place row
+    ; -------------------------
+    mov al, [second_place]
+    call get_player_color
+    mov [result_color], al
+
+    mov bx, 75
+    mov dx, 90
+    mov si, 170
+    mov bp, 22
+    mov al, [result_color]
+    call draw_rect
+
+    ; Rank marker: 2 black blocks
+    mov bx, 58
+    mov dx, 93
+    mov si, 5
+    mov bp, 5
+    mov al, 0
+    call draw_rect
+
+    mov bx, 58
+    mov dx, 102
+    mov si, 5
+    mov bp, 5
+    mov al, 0
+    call draw_rect
+
+    mov bx, 100
+    mov dx, 96
+    mov al, [result_color]
+    mov cl, 1
+    call draw_token_with_dots
+
+    mov bx, 125
+    mov dx, 96
+    mov al, [result_color]
+    mov cl, 2
+    call draw_token_with_dots
+
+    mov bx, 150
+    mov dx, 96
+    mov al, [result_color]
+    mov cl, 3
+    call draw_token_with_dots
+
+    mov bx, 175
+    mov dx, 96
+    mov al, [result_color]
+    mov cl, 4
+    call draw_token_with_dots
+
+
+    ; -------------------------
+    ; 3rd place row
+    ; -------------------------
+    mov al, [third_place]
+    call get_player_color
+    mov [result_color], al
+
+    mov bx, 75
+    mov dx, 122
+    mov si, 170
+    mov bp, 22
+    mov al, [result_color]
+    call draw_rect
+
+    ; Rank marker: 3 black blocks
+    mov bx, 58
+    mov dx, 124
+    mov si, 5
+    mov bp, 5
+    mov al, 0
+    call draw_rect
+
+    mov bx, 58
+    mov dx, 132
+    mov si, 5
+    mov bp, 5
+    mov al, 0
+    call draw_rect
+
+    mov bx, 58
+    mov dx, 140
+    mov si, 5
+    mov bp, 5
+    mov al, 0
+    call draw_rect
+
+    mov bx, 100
+    mov dx, 128
+    mov al, [result_color]
+    mov cl, 1
+    call draw_token_with_dots
+
+    mov bx, 125
+    mov dx, 128
+    mov al, [result_color]
+    mov cl, 2
+    call draw_token_with_dots
+
+    mov bx, 150
+    mov dx, 128
+    mov al, [result_color]
+    mov cl, 3
+    call draw_token_with_dots
+
+    mov bx, 175
+    mov dx, 128
+    mov al, [result_color]
+    mov cl, 4
+    call draw_token_with_dots
+
+
+    ; -------------------------
+    ; 4th place row
+    ; -------------------------
+    mov al, [fourth_place]
+    call get_player_color
+    mov [result_color], al
+
+    mov bx, 75
+    mov dx, 154
+    mov si, 170
+    mov bp, 22
+    mov al, [result_color]
+    call draw_rect
+
+    ; Rank marker: 4 black blocks
+    mov bx, 58
+    mov dx, 155
+    mov si, 5
+    mov bp, 5
+    mov al, 0
+    call draw_rect
+
+    mov bx, 58
+    mov dx, 161
+    mov si, 5
+    mov bp, 5
+    mov al, 0
+    call draw_rect
+
+    mov bx, 58
+    mov dx, 167
+    mov si, 5
+    mov bp, 5
+    mov al, 0
+    call draw_rect
+
+    mov bx, 58
+    mov dx, 173
+    mov si, 5
+    mov bp, 5
+    mov al, 0
+    call draw_rect
+
+    mov bx, 100
+    mov dx, 160
+    mov al, [result_color]
+    mov cl, 1
+    call draw_token_with_dots
+
+    mov bx, 125
+    mov dx, 160
+    mov al, [result_color]
+    mov cl, 2
+    call draw_token_with_dots
+
+    mov bx, 150
+    mov dx, 160
+    mov al, [result_color]
+    mov cl, 3
+    call draw_token_with_dots
+
+    mov bx, 175
+    mov dx, 160
+    mov al, [result_color]
+    mov cl, 4
+    call draw_token_with_dots
+
+    ret
 
 stop_game:
     ; Return to text mode
@@ -2756,25 +3491,25 @@ token_color db 0
 dice_value db 0
 random_seed dw 1234
 
-red_token_1_progress db 255
-red_token_2_progress db 255
-red_token_3_progress db 255
-red_token_4_progress db 255
+red_token_1_progress db 56
+red_token_2_progress db 56
+red_token_3_progress db 56
+red_token_4_progress db 55
 
-green_token_1_progress db 255
-green_token_2_progress db 255
-green_token_3_progress db 255
-green_token_4_progress db 255
+green_token_1_progress db 56
+green_token_2_progress db 56
+green_token_3_progress db 56
+green_token_4_progress db 55
 
-yellow_token_1_progress db 255
-yellow_token_2_progress db 255
-yellow_token_3_progress db 255
-yellow_token_4_progress db 255
+yellow_token_1_progress db 56
+yellow_token_2_progress db 56
+yellow_token_3_progress db 56
+yellow_token_4_progress db 55
 
-blue_token_1_progress db 255
-blue_token_2_progress db 255
-blue_token_3_progress db 255
-blue_token_4_progress db 255
+blue_token_1_progress db 56
+blue_token_2_progress db 56
+blue_token_3_progress db 56
+blue_token_4_progress db 55
 
 current_player db 0
 last_dice db 0
@@ -2795,3 +3530,19 @@ stack_total db 0
 
 dice_available db 0
 game_over db 0
+
+red_finished db 0
+green_finished db 0
+blue_finished db 0
+yellow_finished db 0
+
+finished_player_count db 0
+next_player_checks db 0
+
+win_color db 0
+
+first_place db 255
+second_place db 255
+third_place db 255
+fourth_place db 255
+result_color db 0
