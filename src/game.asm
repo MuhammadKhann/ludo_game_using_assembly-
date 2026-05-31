@@ -3424,13 +3424,27 @@ draw_all_tokens:
 ; BX = token pixel X
 ; DX = token pixel Y
 ; AL = token color
-; CL = number of white dots: 1, 2, 3, or 4
+; CL = number of dots: 1, 2, 3, or 4
+;
+; Yellow token color 14 -> black dots
+; Other token colors   -> white dots
 ; -----------------------------------------
 draw_token_with_dots:
     mov [dot_base_x], bx
     mov [dot_base_y], dx
     mov [dot_count], cl
 
+    ; Choose dot color before drawing body
+    cmp al, 14
+    je .black_dots
+
+    mov byte [token_dot_color], 15
+    jmp .draw_body
+
+.black_dots:
+    mov byte [token_dot_color], 0
+
+.draw_body:
     ; Draw normal colored token first
     call draw_token
 
@@ -3445,7 +3459,7 @@ draw_token_with_dots:
     add dx, 2
     mov si, 2
     mov bp, 2
-    mov al, 15
+    mov al, [token_dot_color]
     call draw_rect
 
     cmp byte [dot_count], 1
@@ -3458,7 +3472,7 @@ draw_token_with_dots:
     add dx, 2
     mov si, 2
     mov bp, 2
-    mov al, 15
+    mov al, [token_dot_color]
     call draw_rect
 
     cmp byte [dot_count], 2
@@ -3471,7 +3485,7 @@ draw_token_with_dots:
     add dx, 6
     mov si, 2
     mov bp, 2
-    mov al, 15
+    mov al, [token_dot_color]
     call draw_rect
 
     cmp byte [dot_count], 3
@@ -3484,12 +3498,11 @@ draw_token_with_dots:
     add dx, 6
     mov si, 2
     mov bp, 2
-    mov al, 15
+    mov al, [token_dot_color]
     call draw_rect
 
 .done:
-    ret    
-
+    ret
 
 ; -----------------------------------------
 ; draw_small_token_with_dots
@@ -3497,13 +3510,27 @@ draw_token_with_dots:
 ; BX = token pixel X
 ; DX = token pixel Y
 ; AL = token color
-; CL = number of white dots
+; CL = number of dots
+;
+; Yellow token color 14 -> black dots
+; Other token colors   -> white dots
 ; -----------------------------------------
 draw_small_token_with_dots:
     mov [dot_base_x], bx
     mov [dot_base_y], dx
     mov [dot_count], cl
 
+    ; Choose dot color before drawing body
+    cmp al, 14
+    je .black_dots
+
+    mov byte [token_dot_color], 15
+    jmp .draw_body
+
+.black_dots:
+    mov byte [token_dot_color], 0
+
+.draw_body:
     ; Draw small colored token body: 5x5
     mov si, 5
     mov bp, 5
@@ -3519,7 +3546,7 @@ draw_small_token_with_dots:
     add dx, 1
     mov si, 1
     mov bp, 1
-    mov al, 15
+    mov al, [token_dot_color]
     call draw_rect
 
     cmp byte [dot_count], 1
@@ -3532,7 +3559,7 @@ draw_small_token_with_dots:
     add dx, 1
     mov si, 1
     mov bp, 1
-    mov al, 15
+    mov al, [token_dot_color]
     call draw_rect
 
     cmp byte [dot_count], 2
@@ -3545,7 +3572,7 @@ draw_small_token_with_dots:
     add dx, 3
     mov si, 1
     mov bp, 1
-    mov al, 15
+    mov al, [token_dot_color]
     call draw_rect
 
     cmp byte [dot_count], 3
@@ -3558,7 +3585,7 @@ draw_small_token_with_dots:
     add dx, 3
     mov si, 1
     mov bp, 1
-    mov al, 15
+    mov al, [token_dot_color]
     call draw_rect
 
 .done:
@@ -3885,25 +3912,24 @@ token_color db 0
 dice_value db 0
 random_seed dw 1234
 
-red_token_1_progress db 0
-red_token_2_progress db 0
-red_token_3_progress db 0
-red_token_4_progress db 0
+red_token_1_progress db 255
+red_token_2_progress db 255
+red_token_3_progress db 255
+red_token_4_progress db 255
+green_token_1_progress db 255
+green_token_2_progress db 255
+green_token_3_progress db 255
+green_token_4_progress db 255
 
-green_token_1_progress db 0
-green_token_2_progress db 0
-green_token_3_progress db 0
-green_token_4_progress db 0
+yellow_token_1_progress db 255
+yellow_token_2_progress db 255
+yellow_token_3_progress db 255
+yellow_token_4_progress db 255
 
-yellow_token_1_progress db 0
-yellow_token_2_progress db 0
-yellow_token_3_progress db 0
-yellow_token_4_progress db 0
-
-blue_token_1_progress db 0
-blue_token_2_progress db 0
-blue_token_3_progress db 0
-blue_token_4_progress db 0
+blue_token_1_progress db 255
+blue_token_2_progress db 255
+blue_token_3_progress db 255
+blue_token_4_progress db 255
 
 current_player db 0
 last_dice db 0
@@ -3958,3 +3984,5 @@ safe_color db 0
 safe_index db 0
 
 capture_happened db 0
+token_dot_color db 15
+
