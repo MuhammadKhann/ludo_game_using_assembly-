@@ -8,10 +8,15 @@ CELL_SIZE equ 12
 DICE_X equ 260
 DICE_Y equ 80
 
+YELLOW_START_INDEX equ 0
 RED_START_INDEX equ 13
 GREEN_START_INDEX equ 26
-YELLOW_START_INDEX equ 0
 BLUE_START_INDEX equ 39
+
+YELLOW_SAFE_2 equ 8
+RED_SAFE_2 equ 21
+GREEN_SAFE_2 equ 34
+BLUE_SAFE_2 equ 47
 
 active_token_dots db 0
 dot_count db 0
@@ -40,6 +45,7 @@ start:
     call draw_start_screen
     call wait_start_key
     call draw_full_screen
+    jmp main_loop   
 
 ; -----------------------------------------
 ; wait_start_key
@@ -100,10 +106,23 @@ game_over_loop:
     mov ah, 0x00
     int 0x16
 
+    ; R or r = restart game
+    cmp al, 'R'
+    je restart_from_result
+
+    cmp al, 'r'
+    je restart_from_result
+
+    ; ESC = exit
     cmp al, 27
     je stop_game
 
     jmp game_over_loop
+
+
+restart_from_result:
+    call restart_game
+    jmp main_loop
 
 
 roll_key:
@@ -121,12 +140,13 @@ roll_key:
     cmp al, 1
     je main_loop
 
-    ; No valid move available, pass turn
+    ; No valid move available, show dice briefly, then pass turn
+    call short_delay
     call consume_dice
     call next_player
     call draw_full_screen
     jmp main_loop
-    
+
 ; -----------------------------------------
 ; Current player token selection
 ; current_player:
@@ -393,7 +413,8 @@ consume_dice:
 ;
 ; Rules checked:
 ; 1. Home token can move only if dice is 6
-; 2. Out token can move only if progress + dice <= 57
+; 2. Out token can move only if progress + dice <= 56
+; 3. Finished token cannot move
 ; -----------------------------------------
 red_has_valid_move:
     ; Check token 1
@@ -1302,6 +1323,22 @@ draw_final_result_screen:
     mov cl, 4
     call draw_token_with_dots
 
+    ; -------------------------
+    ; Restart / Exit instruction
+    ; -------------------------
+    mov bx, 55
+    mov dx, 182
+    mov si, 210
+    mov bp, 12
+    mov al, 0
+    call draw_rect
+
+    mov dh, 23
+    mov dl, 9
+    mov bl, 15
+    mov si, result_restart_text
+    call print_text_at
+
     ret
 
 ; -----------------------------------------
@@ -1614,6 +1651,96 @@ handle_capture_for_current_move:
 .done:
     ret
 
+; -----------------------------------------
+; restart_game
+; Resets all game state and starts a new match
+; -----------------------------------------
+restart_game:
+    ; Reset Red tokens
+    mov byte [red_token_1_progress], 255
+    mov byte [red_token_2_progress], 255
+    mov byte [red_token_3_progress], 255
+    mov byte [red_token_4_progress], 255
+
+    ; Reset Green tokens
+    mov byte [green_token_1_progress], 255
+    mov byte [green_token_2_progress], 255
+    mov byte [green_token_3_progress], 255
+    mov byte [green_token_4_progress], 255
+
+    ; Reset Blue tokens
+    mov byte [blue_token_1_progress], 255
+    mov byte [blue_token_2_progress], 255
+    mov byte [blue_token_3_progress], 255
+    mov byte [blue_token_4_progress], 255
+
+    ; Reset Yellow tokens
+    mov byte [yellow_token_1_progress], 255
+    mov byte [yellow_token_2_progress], 255
+    mov byte [yellow_token_3_progress], 255
+    mov byte [yellow_token_4_progress], 255
+
+    ; Reset dice
+    mov byte [dice_value], 0
+    mov byte [dice_available], 0
+    mov byte [last_dice], 0
+
+    ; Reset current player
+    mov byte [current_player], 0
+
+    ; Reset game over
+    mov byte [game_over], 0
+
+    ; Reset finished players
+    mov byte [red_finished], 0
+    mov byte [green_finished], 0
+    mov byte [blue_finished], 0
+    mov byte [yellow_finished], 0
+
+    mov byte [finished_player_count], 0
+    mov byte [next_player_checks], 0
+
+    ; Reset ranking
+    mov byte [first_place], 255
+    mov byte [second_place], 255
+    mov byte [third_place], 255
+    mov byte [fourth_place], 255
+
+    ; Reset capture state
+    mov byte [capture_happened], 0
+    mov byte [capture_path_index], 0
+
+    ; Reset drawing stack
+    mov byte [token_stack_count], 0
+
+    ; Draw fresh board
+    call draw_full_screen
+
+    ret
+
+; -----------------------------------------
+; short_delay
+; Small delay so dice is visible when no move exists
+; -----------------------------------------
+short_delay:
+    push cx
+    push dx
+
+    mov cx, 2500
+
+.outer_loop:
+    mov dx, 300
+
+.inner_loop:
+    dec dx
+    jnz .inner_loop
+
+    loop .outer_loop
+
+    pop dx
+    pop cx
+    ret
+
 
 stop_game:
     ; Return to text mode
@@ -1903,7 +2030,7 @@ draw_start_screen:
     mov bl, 15
     mov si, menu_instructor
     call print_text_at
-    
+
     ; -------------------------
     ; Color blocks
     ; -------------------------
@@ -3840,16 +3967,6 @@ result_color db 0
 
 capture_path_index db 0
 
-YELLOW_START_INDEX equ 0
-RED_START_INDEX equ 13
-GREEN_START_INDEX equ 26
-BLUE_START_INDEX equ 39
-
-YELLOW_SAFE_2 equ 8
-RED_SAFE_2 equ 21
-GREEN_SAFE_2 equ 34
-BLUE_SAFE_2 equ 47
-
 safe_color db 0
 safe_index db 0
 
@@ -3862,3 +3979,4 @@ menu_members      db "MEMBERS:", 0
 menu_member_names db "MUHAMMAD, SHAHMEER, ABDULLAH", 0
 menu_instructor   db "INSTRUCTOR: MA'AM MAMOONA", 0
 menu_start        db "PRESS ENTER TO START", 0
+result_restart_text db "R = RESTART  ESC = EXIT", 0
