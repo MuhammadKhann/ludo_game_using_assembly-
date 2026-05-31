@@ -37,7 +37,29 @@ start:
 
     mov byte [dice_value], 0
 
+    call draw_start_screen
+    call wait_start_key
     call draw_full_screen
+
+; -----------------------------------------
+; wait_start_key
+; ENTER = start game
+; ESC   = exit
+; -----------------------------------------
+wait_start_key:
+    mov ah, 0x00
+    int 0x16
+
+    cmp al, 13          ; ENTER
+    je .start_game
+
+    cmp al, 27          ; ESC
+    je stop_game
+
+    jmp wait_start_key
+
+.start_game:
+    ret
 
 main_loop:
     ; If game is over, only allow ESC
@@ -1789,6 +1811,125 @@ find_stack_info_for_cell:
     mov cl, 0
     ret
 
+; -----------------------------------------
+; draw_start_screen
+; Clean simple menu screen before game starts
+; -----------------------------------------
+draw_start_screen:
+    ; Black background
+    mov bx, 0
+    mov dx, 0
+    mov si, 320
+    mov bp, 200
+    mov al, 0
+    call draw_rect
+
+    ; White main panel
+    mov bx, 55
+    mov dx, 35
+    mov si, 210
+    mov bp, 130
+    mov al, 15
+    call draw_rect
+
+    ; Black title bar
+    mov bx, 75
+    mov dx, 50
+    mov si, 170
+    mov bp, 28
+    mov al, 0
+    call draw_rect
+
+    ; Title text
+    mov dh, 7
+    mov dl, 16
+    mov bl, 15
+    mov si, menu_title
+    call print_text_at
+
+    ; Four color blocks
+    mov bx, 82
+    mov dx, 95
+    mov si, 32
+    mov bp, 22
+    mov al, 4
+    call draw_rect
+
+    mov bx, 122
+    mov dx, 95
+    mov si, 32
+    mov bp, 22
+    mov al, 2
+    call draw_rect
+
+    mov bx, 162
+    mov dx, 95
+    mov si, 32
+    mov bp, 22
+    mov al, 1
+    call draw_rect
+
+    mov bx, 202
+    mov dx, 95
+    mov si, 32
+    mov bp, 22
+    mov al, 14
+    call draw_rect
+
+    ; Start instruction
+    mov dh, 17
+    mov dl, 10
+    mov bl, 4
+    mov si, menu_start
+    call print_text_at
+
+    ; Exit instruction
+    mov dh, 20
+    mov dl, 15
+    mov bl, 0
+    mov si, menu_exit
+    call print_text_at
+
+    ret
+
+; -----------------------------------------
+; print_text_at
+; input:
+; DH = row
+; DL = column
+; BL = text color
+; SI = string address
+;
+; Uses BIOS text output in graphics mode 13h.
+; -----------------------------------------
+print_text_at:
+    push ax
+    push bx
+    push dx
+    push si
+
+    ; Set cursor position
+    mov ah, 0x02
+    mov bh, 0
+    int 0x10
+
+.next_char:
+    lodsb
+    cmp al, 0
+    je .done
+
+    mov ah, 0x0E
+    mov bh, 0
+    int 0x10
+
+    jmp .next_char
+
+.done:
+    pop si
+    pop dx
+    pop bx
+    pop ax
+    ret
 
 ; -----------------------------------------
 ; Draw complete screen
@@ -3654,3 +3795,6 @@ safe_index db 0
 capture_happened db 0
 token_dot_color db 15
 
+menu_title db "LUDO GAME", 0
+menu_start db "PRESS ENTER TO START", 0
+menu_exit  db "ESC TO EXIT", 0
