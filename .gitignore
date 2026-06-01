@@ -1,0 +1,9 @@
+build/
+
+# Build outputs
+build/
+*.img
+*.bin
+*.o
+*.so
+*.EFI

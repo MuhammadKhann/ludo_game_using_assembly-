@@ -329,7 +329,7 @@ move_red_token_by_si:
 
     ; Token can move up to progress 56 only
     ; 0-50  = main path
-    ; 51-55 = home lane
+    ; 51-255 = home lane
     ; 56    = finished/final cell
     cmp al, 56
     ja .invalid_move
@@ -1086,7 +1086,7 @@ draw_final_result_screen:
     call draw_rect
 
     ; Black border/header area
-    mov bx, 55
+    mov bx, 255
     mov dx, 28
     mov si, 210
     mov bp, 18
@@ -1272,7 +1272,7 @@ draw_final_result_screen:
 
     ; Rank marker: 4 black blocks
     mov bx, 58
-    mov dx, 155
+    mov dx, 1255
     mov si, 5
     mov bp, 5
     mov al, 0
@@ -1326,7 +1326,7 @@ draw_final_result_screen:
     ; -------------------------
     ; Restart / Exit instruction
     ; -------------------------
-    mov bx, 55
+    mov bx, 255
     mov dx, 182
     mov si, 210
     mov bp, 12
@@ -2575,7 +2575,7 @@ draw_red_token_4:
 ; AL = token progress
 ;
 ; 0-50  = main path
-; 51-55 = red home lane
+; 51-255 = red home lane
 ; 56    = finished area
 ; -----------------------------------------
 draw_red_token_on_path:
@@ -2716,7 +2716,7 @@ draw_green_token_4:
 ; AL = token progress
 ;
 ; 0-50  = main path
-; 51-55 = green home lane
+; 51-255 = green home lane
 ; 56    = finished area
 ; -----------------------------------------
 draw_green_token_on_path:
@@ -2860,7 +2860,7 @@ draw_yellow_token_4:
 ; AL = token progress
 ;
 ; 0-50  = main path
-; 51-55 = yellow home lane
+; 51-255 = yellow home lane
 ; 56    = finished/final cell
 ; -----------------------------------------
 draw_yellow_token_on_path:
@@ -2870,7 +2870,7 @@ draw_yellow_token_on_path:
     cmp al, 56
     je .finished
 
-    ; Home lane: progress 51-55
+    ; Home lane: progress 51-255
     ; lane_index = progress - 51
     sub al, 51
     xor ah, ah
@@ -3002,7 +3002,7 @@ draw_blue_token_4:
 ; AL = token progress
 ;
 ; 0-50  = main path
-; 51-55 = blue home lane
+; 51-255 = blue home lane
 ; 56    = finished/final cell
 ; -----------------------------------------
 draw_blue_token_on_path:
@@ -3012,7 +3012,7 @@ draw_blue_token_on_path:
     cmp al, 56
     je .finished
 
-    ; Home lane: progress 51-55
+    ; Home lane: progress 51-255
     ; lane_index = progress - 51
     sub al, 51
     xor ah, ah
@@ -3909,7 +3909,7 @@ grid_y db 0
 token_color db 0
 
 dice_value db 0
-random_seed dw 1234
+random_seed dw 1234 
 
 red_token_1_progress db 255
 red_token_2_progress db 255
@@ -3980,3 +3980,21 @@ menu_member_names db "MUHAMMAD, SHAHMEER, ABDULLAH", 0
 menu_instructor   db "INSTRUCTOR: MA'AM MAMOONA", 0
 menu_start        db "PRESS ENTER TO START", 0
 result_restart_text db "R = RESTART  ESC = EXIT", 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
